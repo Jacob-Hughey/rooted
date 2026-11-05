@@ -1,0 +1,4 @@
+# Cloudflare Pages: make sure the service worker is always revalidated.
+# (Cloudflare Pages serves index.html for unknown routes automatically when there is no 404.html.)
+/sw.js
+  Cache-Control: no-cache
