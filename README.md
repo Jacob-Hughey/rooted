@@ -1,10 +1,10 @@
-# Greenhouse 🌿
+# Rooted 🌿
 
 A photo-first plant care app — plant profiles, smart watering reminders, rooms, care history, and a Today dashboard. Built as an installable web app (PWA) for iPhone and iPad.
 
 **Stack:** React 19 · TypeScript · Vite · Tailwind v4 · shadcn/ui-ready · TanStack Query · React Router · Supabase (Postgres, Auth, Storage, Edge Functions, pg_cron) · Web Push
 
-> "Greenhouse" is a working name — search the repo for it (index.html, vite.config.ts, SignIn.tsx, sw.ts) to rename.
+> "Rooted" is a working name — search the repo for it (index.html, vite.config.ts, SignIn.tsx, sw.ts) to rename.
 
 ---
 
@@ -27,7 +27,7 @@ supabase/
 ```
 
 ### Design decisions worth knowing
-- **Households.** Every row belongs to a household, so you can both use it. Invite her email in Settings *before* her first sign-in and she lands in your greenhouse.
+- **Households.** Every row belongs to a household, so you can both use it. Invite her email in Settings *before* her first sign-in and she lands in your Rooted.
 - **Watering is event-driven.** Tapping "Watered" inserts a `care_events` row; a trigger updates `last_watered_at` / `next_water_at`. Deleting the event (Undo) rolls it back. History is never lost.
 - **"Smart" schedule.** `next = last watered + interval × seasonal factor × learned adjust`. Winter stretches intervals (×1.4 in Dec–Jan), summer shortens them. "Still damp" check-ins snooze 2 days and nudge that plant's interval up 5% (capped at +60%).
 - **Photos** are resized to 1600px JPEG in the browser, stored in a private bucket under `{household_id}/…`, and shown with signed URLs.

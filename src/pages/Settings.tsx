@@ -71,7 +71,7 @@ function NotificationsCard() {
       <h2 className="text-xl">Notifications</h2>
       {state === "needs-install" ? (
         <div className="space-y-3 text-sm">
-          <p>To get watering reminders on this {navigator.userAgent.includes("iPad") ? "iPad" : "iPhone"}, add Greenhouse to the Home Screen first:</p>
+          <p>To get watering reminders on this {navigator.userAgent.includes("iPad") ? "iPad" : "iPhone"}, add Rooted to the Home Screen first:</p>
           <ol className="space-y-2">
             <li className="flex items-center gap-2"><Share className="size-4 text-primary" /> Tap Share in Safari</li>
             <li className="flex items-center gap-2"><SquarePlus className="size-4 text-primary" /> Choose “Add to Home Screen”</li>
@@ -81,7 +81,7 @@ function NotificationsCard() {
       ) : state === "unsupported" ? (
         <p className="text-sm text-muted-foreground">This browser doesn't support push notifications.</p>
       ) : state === "denied" ? (
-        <p className="text-sm text-muted-foreground">Notifications are blocked. Turn them on in system Settings → Notifications → Greenhouse.</p>
+        <p className="text-sm text-muted-foreground">Notifications are blocked. Turn them on in system Settings → Notifications → Rooted.</p>
       ) : (
         <Button variant={state === "on" ? "outline" : "default"} className="w-full" onClick={toggle} disabled={!state}>
           {state === "on" ? <><BellOff /> Turn off on this device</> : <><Bell /> Turn on watering reminders</>}
@@ -100,9 +100,9 @@ function InviteCard() {
 
   return (
     <section className={card}>
-      <h2 className="text-xl">Share the greenhouse</h2>
+      <h2 className="text-xl">Share the Rooted</h2>
       <p className="text-sm text-muted-foreground">
-        Invite someone by email before they sign in for the first time — they'll join this greenhouse.
+        Invite someone by email before they sign in for the first time — they'll join this Rooted.
       </p>
       <form
         className="flex gap-2"

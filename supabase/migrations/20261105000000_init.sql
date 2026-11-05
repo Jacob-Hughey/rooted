@@ -1,5 +1,5 @@
 -- =============================================================================
--- Greenhouse — initial schema
+-- Rooted — initial schema
 -- Households (so you and your wife share one garden), locations → rooms → plants,
 -- an append-only care history, and push subscriptions for watering reminders.
 -- =============================================================================

@@ -18,8 +18,8 @@ export default defineConfig({
       devOptions: { enabled: true, type: "module" },
       includeAssets: ["icons/apple-touch-icon.png", "icons/favicon.svg"],
       manifest: {
-        name: "Greenhouse",
-        short_name: "Greenhouse",
+        name: "Rooted",
+        short_name: "Rooted",
         description: "Plant care, watering reminders and a home for every leaf.",
         start_url: "/",
         scope: "/",

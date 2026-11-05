@@ -20,7 +20,7 @@ registerRoute(new NavigationRoute(createHandlerBoundToURL("/index.html")));
 type ReminderPayload = { title: string; body: string; url?: string; tag?: string; badge_count?: number };
 
 self.addEventListener("push", (event) => {
-  let data: ReminderPayload = { title: "Greenhouse", body: "Some plants could use you today." };
+  let data: ReminderPayload = { title: "Rooted", body: "Some plants could use you today." };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch {

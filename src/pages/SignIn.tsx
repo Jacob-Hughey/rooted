@@ -26,7 +26,7 @@ export default function SignIn() {
         <div className="mx-auto mb-6 grid size-16 place-items-center rounded-3xl bg-primary text-primary-foreground shadow-lg">
           <Leaf className="size-8" strokeWidth={1.75} />
         </div>
-        <h1 className="text-4xl">Greenhouse</h1>
+        <h1 className="text-4xl">Rooted</h1>
         <p className="mt-2 text-muted-foreground">Every leaf, looked after.</p>
 
         <div className="mt-10 space-y-3">
