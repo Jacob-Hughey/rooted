@@ -1,9 +1,9 @@
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { format, formatDistanceToNow } from "date-fns";
-import { ChevronLeft, Droplet, Hand, Sprout, Undo2 } from "lucide-react";
+import { ArchiveRestore, Camera, ChevronLeft, Droplet, Hand, Pencil, Sprout, Undo2 } from "lucide-react";
 import { PlantPhoto } from "@/components/PlantPhoto";
 import { Button } from "@/components/ui/button";
-import { useCareHistory, useLogCare, usePlant, useUndoCare } from "@/data/queries";
+import { useCareHistory, useLogCare, usePlant, useUndoCare, useUpdatePlant } from "@/data/queries";
 import { waterLabel } from "@/lib/watering";
 import type { CareType } from "@/lib/types";
 
@@ -26,6 +26,7 @@ export default function PlantDetail() {
   const { data: history = [] } = useCareHistory(id);
   const log = useLogCare();
   const undo = useUndoCare();
+  const update = useUpdatePlant();
 
   if (!plant) return <div className="aspect-[4/5] animate-pulse rounded-[var(--radius-xl)] bg-muted" />;
 
@@ -41,6 +42,21 @@ export default function PlantDetail() {
         >
           <ChevronLeft className="size-5" />
         </button>
+        <Link
+          to={`/plants/${plant.id}/edit`}
+          aria-label="Edit plant"
+          className="absolute right-4 top-[max(env(safe-area-inset-top),1rem)] grid size-10 place-items-center rounded-full bg-card/80 backdrop-blur"
+        >
+          <Pencil className="size-4" />
+        </Link>
+        {!plant.cover_photo_path && (
+          <Link
+            to={`/plants/${plant.id}/edit`}
+            className="absolute inset-x-0 top-1/3 mx-auto flex w-fit items-center gap-2 rounded-full bg-card/85 px-4 py-2 text-sm backdrop-blur"
+          >
+            <Camera className="size-4" /> Add a photo
+          </Link>
+        )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-5 pt-16 text-white md:rounded-b-[var(--radius-xl)]">
           <h1 className="text-4xl">{plant.nickname ?? plant.name}</h1>
           <p className="opacity-85">
@@ -48,6 +64,15 @@ export default function PlantDetail() {
           </p>
         </div>
       </div>
+
+      {plant.archived_at && (
+        <div className="mt-5 flex items-center justify-between gap-3 rounded-[var(--radius-lg)] bg-secondary p-4">
+          <p className="text-sm">Archived {format(new Date(plant.archived_at), "MMM d, yyyy")}</p>
+          <Button size="sm" variant="outline" disabled={update.isPending} onClick={() => update.mutate({ plant, patch: { archived_at: null } })}>
+            <ArchiveRestore /> Restore
+          </Button>
+        </div>
+      )}
 
       <div className="mt-5 grid grid-cols-2 gap-3">
         <div className="rounded-[var(--radius-lg)] bg-card p-4 shadow-sm">
@@ -71,6 +96,10 @@ export default function PlantDetail() {
           <Sprout />
         </Button>
       </div>
+
+      {plant.notes && (
+        <p className="mt-6 whitespace-pre-line rounded-[var(--radius-lg)] bg-card p-4 text-sm shadow-sm">{plant.notes}</p>
+      )}
 
       <section className="mt-8">
         <h2 className="mb-3 text-xl">Care history</h2>

@@ -1,14 +1,15 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
-import { Plus } from "lucide-react";
+import { Archive, Plus } from "lucide-react";
 import { PageHeader } from "@/components/AppShell";
 import { PlantCard } from "@/components/PlantCard";
 import { Button } from "@/components/ui/button";
-import { usePlants } from "@/data/queries";
+import { useArchivedPlants, usePlants } from "@/data/queries";
 import { cn } from "@/lib/utils";
 
 export default function Plants() {
   const { data: plants = [] } = usePlants();
+  const { data: archived = [] } = useArchivedPlants();
   const [room, setRoom] = useState<string | null>(null);
 
   const rooms = useMemo(
@@ -53,6 +54,12 @@ export default function Plants() {
           <PlantCard key={p.id} plant={p} />
         ))}
       </div>
+
+      {archived.length > 0 && (
+        <Link to="/plants/archived" className="mt-8 flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
+          <Archive className="size-4" /> Archived ({archived.length})
+        </Link>
+      )}
     </>
   );
 }

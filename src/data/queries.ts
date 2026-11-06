@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { PHOTO_BUCKET, supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthProvider";
-import type { CareEvent, CareType, Household, Location, PlantWithPlace, Profile, Room } from "@/lib/types";
+import type { CareEvent, CareType, Household, Location, Plant, PlantWithPlace, Profile, Room } from "@/lib/types";
 
 function unwrap<T>({ data, error }: { data: T | null; error: unknown }): T {
   if (error) throw error;
@@ -12,6 +12,7 @@ export const keys = {
   household: ["household"] as const,
   profile: ["profile"] as const,
   plants: ["plants"] as const,
+  archived: ["plants", "archived"] as const, // under "plants" so plant edits refresh it too
   plant: (id: string) => ["plants", id] as const,
   history: (id: string) => ["history", id] as const,
   places: ["places"] as const,
@@ -55,6 +56,16 @@ export function usePlants() {
     queryFn: async () =>
       unwrap<PlantWithPlace[]>(
         await supabase.from("plant_status").select("*").is("archived_at", null).order("next_water_at", { nullsFirst: true }),
+      ),
+  });
+}
+
+export function useArchivedPlants() {
+  return useQuery({
+    queryKey: keys.archived,
+    queryFn: async () =>
+      unwrap<PlantWithPlace[]>(
+        await supabase.from("plant_status").select("*").not("archived_at", "is", null).order("archived_at", { ascending: false }),
       ),
   });
 }
@@ -135,16 +146,82 @@ export function useCreatePlant() {
       nickname?: string;
       room_id?: string | null;
       water_interval_days: number;
+      notes?: string;
       cover_photo_path?: string | null;
       last_watered_at?: string | null;
-    }) => unwrap<{ id: string }>(await supabase.from("plants").insert(input).select("id").single()),
+    }) => {
+      const plant = unwrap<{ id: string }>(await supabase.from("plants").insert(input).select("id").single());
+      if (input.cover_photo_path) await recordPhoto(input.household_id, plant.id, input.cover_photo_path);
+      return plant;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.plants }),
   });
+}
+
+export type PlantPatch = Partial<
+  Pick<Plant, "name" | "nickname" | "species" | "notes" | "room_id" | "water_interval_days" | "cover_photo_path" | "archived_at">
+>;
+
+/** Edit a plant. Changing water_interval_days makes the database trigger recalculate next_water_at. */
+export function useUpdatePlant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ plant, patch }: { plant: Pick<Plant, "id" | "household_id" | "cover_photo_path">; patch: PlantPatch }) => {
+      unwrap(await supabase.from("plants").update(patch).eq("id", plant.id));
+      if (patch.cover_photo_path && patch.cover_photo_path !== plant.cover_photo_path) {
+        await recordPhoto(plant.household_id, plant.id, patch.cover_photo_path);
+      }
+    },
+    // keys.plants is a prefix of keys.plant(id), so this refreshes the list and the detail page.
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.plants }),
+  });
+}
+
+/** Keep every cover photo in plant_photos so the future photo timeline has the full history. */
+async function recordPhoto(household_id: string, plant_id: string, path: string) {
+  unwrap(await supabase.from("plant_photos").insert({ household_id, plant_id, path }));
 }
 
 export function useInvite() {
   return useMutation({
     mutationFn: async (input: { household_id: string; email: string }) =>
       unwrap(await supabase.from("household_invites").insert({ ...input, email: input.email.trim().toLowerCase() })),
+  });
+}
+
+/**
+ * Permanently delete a plant. The database cascades its care_events and plant_photos rows;
+ * the photo files in storage are removed here, since the database can't do that.
+ */
+export function useDeletePlant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (plant: Pick<Plant, "id" | "cover_photo_path">) => {
+      // Collect photo paths first: the rows that list them disappear with the plant.
+      const [photos, events] = await Promise.all([
+        supabase.from("plant_photos").select("path").eq("plant_id", plant.id),
+        supabase.from("care_events").select("photo_path").eq("plant_id", plant.id).not("photo_path", "is", null),
+      ]);
+      const paths = new Set<string>([
+        ...unwrap<{ path: string }[]>(photos).map((r) => r.path),
+        ...unwrap<{ photo_path: string }[]>(events).map((r) => r.photo_path),
+      ]);
+      if (plant.cover_photo_path) paths.add(plant.cover_photo_path);
+
+      const deleted = unwrap<{ id: string }[]>(await supabase.from("plants").delete().eq("id", plant.id).select("id"));
+      if (deleted.length === 0) throw new Error("Couldn't delete that plant — it may already be gone.");
+
+      if (paths.size > 0) {
+        const { error } = await supabase.storage.from(PHOTO_BUCKET).remove([...paths]);
+        if (error) console.warn("Plant deleted, but some photo files weren't removed", error);
+      }
+    },
+    onSuccess: (_d, plant) => {
+      // Drop it from the cached lists directly rather than refetching everything under "plants",
+      // which would re-request the deleted plant while its screen is still closing.
+      const drop = (list?: PlantWithPlace[]) => list?.filter((p) => p.id !== plant.id);
+      qc.setQueryData(keys.plants, drop);
+      qc.setQueryData(keys.archived, drop);
+    },
   });
 }

@@ -1,0 +1,179 @@
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { Camera, Minus, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PlantPhoto } from "@/components/PlantPhoto";
+import { usePlaces } from "@/data/queries";
+import { WATERING_PRESETS } from "@/lib/watering";
+import { cn } from "@/lib/utils";
+
+export const field =
+  "h-12 w-full rounded-[var(--radius-md)] border bg-card px-4 text-base outline-none focus:ring-2 focus:ring-ring";
+
+export interface PlantFormValues {
+  name: string;
+  nickname: string;
+  species: string;
+  roomId: string;
+  waterDays: number;
+  notes: string;
+}
+
+export const EMPTY_PLANT: PlantFormValues = { name: "", nickname: "", species: "", roomId: "", waterDays: 7, notes: "" };
+
+const MIN_DAYS = 1;
+const MAX_DAYS = 120; // matches the check constraint on plants.water_interval_days
+
+/**
+ * The plant fields shared by "New plant" and "Edit plant".
+ * The parent decides what saving means; this handles form state, the photo picker and errors.
+ */
+export function PlantForm({
+  initial,
+  photoPath,
+  submitLabel,
+  savingLabel,
+  onSubmit,
+  extra,
+}: {
+  initial: PlantFormValues;
+  /** Current cover photo (edit only), shown until a new one is picked. */
+  photoPath?: string | null;
+  submitLabel: string;
+  savingLabel: string;
+  onSubmit: (values: PlantFormValues, newPhoto: File | null) => Promise<void>;
+  /** Rendered under the watering section (e.g. "I watered it today"). */
+  extra?: ReactNode;
+}) {
+  const { data: places } = usePlaces();
+  const [v, setV] = useState(initial);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const set = <K extends keyof PlantFormValues>(key: K, value: PlantFormValues[K]) =>
+    setV((s) => ({ ...s, [key]: value }));
+  const setDays = (d: number) => set("waterDays", Math.min(MAX_DAYS, Math.max(MIN_DAYS, Math.round(d) || MIN_DAYS)));
+
+  useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await onSubmit(
+        { ...v, name: v.name.trim(), nickname: v.nickname.trim(), species: v.species.trim(), notes: v.notes.trim() },
+        photo,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save the plant");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const hasPhoto = !!preview || !!photoPath;
+
+  return (
+    <form onSubmit={submit} className="space-y-6">
+      <label className="relative grid aspect-[4/3] cursor-pointer place-items-center overflow-hidden rounded-[var(--radius-xl)] border-2 border-dashed bg-card">
+        {preview ? (
+          <img src={preview} alt="" className="absolute inset-0 size-full object-cover" />
+        ) : photoPath ? (
+          <PlantPhoto path={photoPath} alt="" className="absolute inset-0" />
+        ) : (
+          <span className="flex flex-col items-center gap-2 text-muted-foreground">
+            <Camera className="size-8" strokeWidth={1.5} />
+            Add a photo
+          </span>
+        )}
+        {hasPhoto && (
+          <span className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-card/85 px-3 py-1.5 text-sm backdrop-blur">
+            <Camera className="size-4" /> Change photo
+          </span>
+        )}
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            setPhoto(f);
+            setPreview(f ? URL.createObjectURL(f) : null);
+          }}
+        />
+      </label>
+
+      <div className="space-y-3">
+        <input required placeholder="Name (e.g. Monstera)" value={v.name} onChange={(e) => set("name", e.target.value)} className={field} />
+        <input placeholder="Nickname (optional, e.g. Monty)" value={v.nickname} onChange={(e) => set("nickname", e.target.value)} className={field} />
+        <input placeholder="Species (optional)" value={v.species} onChange={(e) => set("species", e.target.value)} className={field} />
+        <select value={v.roomId} onChange={(e) => set("roomId", e.target.value)} className={field}>
+          <option value="">No room yet</option>
+          {places?.locations.map((loc) => (
+            <optgroup key={loc.id} label={loc.name}>
+              {places.rooms
+                .filter((r) => r.location_id === loc.id)
+                .map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
+      <fieldset className="space-y-3">
+        <legend className="mb-2 font-display text-lg">How thirsty is it?</legend>
+        <div className="grid grid-cols-2 gap-2">
+          {WATERING_PRESETS.map((p) => (
+            <button
+              type="button"
+              key={p.days}
+              onClick={() => setDays(p.days)}
+              className={cn(
+                "rounded-[var(--radius-md)] border p-3 text-left text-sm transition-colors",
+                v.waterDays === p.days ? "border-primary bg-secondary" : "bg-card",
+              )}
+            >
+              <span className="block font-medium">Every {p.days} days</span>
+              <span className="text-muted-foreground">{p.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center justify-between rounded-[var(--radius-md)] border bg-card p-2 pl-4">
+          <span className="text-sm">
+            Every <strong className="font-medium">{v.waterDays}</strong> {v.waterDays === 1 ? "day" : "days"}
+          </span>
+          <div className="flex gap-1">
+            <Button type="button" variant="ghost" size="icon" aria-label="One day less" onClick={() => setDays(v.waterDays - 1)} disabled={v.waterDays <= MIN_DAYS}>
+              <Minus />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" aria-label="One day more" onClick={() => setDays(v.waterDays + 1)} disabled={v.waterDays >= MAX_DAYS}>
+              <Plus />
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          The schedule stretches in winter and learns from "soil still damp" check-ins.
+        </p>
+        {extra}
+      </fieldset>
+
+      <textarea
+        placeholder="Notes (optional) — where it came from, quirks, what it likes"
+        value={v.notes}
+        onChange={(e) => set("notes", e.target.value)}
+        rows={3}
+        className={cn(field, "h-auto py-3")}
+      />
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <Button size="lg" className="w-full" disabled={saving || !v.name.trim()}>
+        {saving ? savingLabel : submitLabel}
+      </Button>
+    </form>
+  );
+}

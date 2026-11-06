@@ -8,6 +8,8 @@ import Today from "@/pages/Today";
 const Plants = lazy(() => import("@/pages/Plants"));
 const PlantDetail = lazy(() => import("@/pages/PlantDetail"));
 const NewPlant = lazy(() => import("@/pages/NewPlant"));
+const EditPlant = lazy(() => import("@/pages/EditPlant"));
+const ArchivedPlants = lazy(() => import("@/pages/ArchivedPlants"));
 const Rooms = lazy(() => import("@/pages/Rooms"));
 const Settings = lazy(() => import("@/pages/Settings"));
 
@@ -25,7 +27,9 @@ export default function App() {
             <Route index element={<Today />} />
             <Route path="plants" element={<Plants />} />
             <Route path="plants/new" element={<NewPlant />} />
+            <Route path="plants/archived" element={<ArchivedPlants />} />
             <Route path="plants/:id" element={<PlantDetail />} />
+            <Route path="plants/:id/edit" element={<EditPlant />} />
             <Route path="rooms" element={<Rooms />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
