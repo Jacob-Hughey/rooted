@@ -1,5 +1,6 @@
 import { Link } from "react-router";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, DoorOpen, Plus } from "lucide-react";
+import { PlantPhoto } from "@/components/PlantPhoto";
 import { PageHeader } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { usePlaces, usePlants } from "@/data/queries";
@@ -42,8 +43,11 @@ export default function Rooms() {
                     <Link
                       key={room.id}
                       to={`/rooms/${room.id}/edit`}
-                      className="flex items-center gap-3 rounded-[var(--radius-xl)] bg-card p-5 shadow-sm transition-transform active:scale-[0.98]"
+                      className="flex items-center gap-3 rounded-[var(--radius-xl)] bg-card p-4 shadow-sm transition-transform active:scale-[0.98]"
                     >
+                      {room.photo_path && (
+                        <PlantPhoto path={room.photo_path} alt="" icon={DoorOpen} className="size-14 shrink-0 rounded-[var(--radius-md)]" />
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline justify-between gap-2">
                           <h3 className="truncate text-xl">{room.name}</h3>

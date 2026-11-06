@@ -1,7 +1,7 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Camera, Minus, Plus } from "lucide-react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PlantPhoto } from "@/components/PlantPhoto";
+import { PhotoPicker } from "@/components/PhotoPicker";
 import { usePlaces } from "@/data/queries";
 import { LIGHT_LABEL, lightWaterHint, WATERING_PRESETS } from "@/lib/watering";
 import type { LightLevel } from "@/lib/types";
@@ -50,15 +50,12 @@ export function PlantForm({
   const { data: places } = usePlaces();
   const [v, setV] = useState(initial);
   const [photo, setPhoto] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const set = <K extends keyof PlantFormValues>(key: K, value: PlantFormValues[K]) =>
     setV((s) => ({ ...s, [key]: value }));
   const setDays = (d: number) => set("waterDays", Math.min(MAX_DAYS, Math.max(MIN_DAYS, Math.round(d) || MIN_DAYS)));
-
-  useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -76,39 +73,12 @@ export function PlantForm({
     }
   }
 
-  const hasPhoto = !!preview || !!photoPath;
   const roomLight = places?.rooms.find((r) => r.id === v.roomId)?.light ?? null;
   const lightHint = lightWaterHint(v.light ?? roomLight);
 
   return (
     <form onSubmit={submit} className="space-y-6">
-      <label className="relative grid aspect-[4/3] cursor-pointer place-items-center overflow-hidden rounded-[var(--radius-xl)] border-2 border-dashed bg-card">
-        {preview ? (
-          <img src={preview} alt="" className="absolute inset-0 size-full object-cover" />
-        ) : photoPath ? (
-          <PlantPhoto path={photoPath} alt="" className="absolute inset-0" />
-        ) : (
-          <span className="flex flex-col items-center gap-2 text-muted-foreground">
-            <Camera className="size-8" strokeWidth={1.5} />
-            Add a photo
-          </span>
-        )}
-        {hasPhoto && (
-          <span className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-card/85 px-3 py-1.5 text-sm backdrop-blur">
-            <Camera className="size-4" /> Change photo
-          </span>
-        )}
-        <input
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          onChange={(e) => {
-            const f = e.target.files?.[0] ?? null;
-            setPhoto(f);
-            setPreview(f ? URL.createObjectURL(f) : null);
-          }}
-        />
-      </label>
+      <PhotoPicker photoPath={photoPath} onChange={setPhoto} />
 
       <div className="space-y-3">
         <input required placeholder="Name (e.g. Monstera)" value={v.name} onChange={(e) => set("name", e.target.value)} className={field} />

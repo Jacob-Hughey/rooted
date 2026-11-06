@@ -231,15 +231,30 @@ export interface RoomInput {
   name: string;
   light: LightLevel | null;
   location_id: string;
+  photo_path: string | null;
 }
 
 /** Create a room (when no id is given) or edit one. Rooms are listed by sort_order, so new ones go last. */
 export function useSaveRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, household_id, input }: { id?: string; household_id: string; input: RoomInput }) => {
+    mutationFn: async ({
+      id,
+      household_id,
+      input,
+      previousPhoto,
+    }: {
+      id?: string;
+      household_id: string;
+      input: RoomInput;
+      /** The room's photo before this save; removed from storage if it was replaced. */
+      previousPhoto?: string | null;
+    }) => {
       if (id) {
         unwrap(await supabase.from("rooms").update(input).eq("id", id));
+        if (previousPhoto && previousPhoto !== input.photo_path) {
+          await supabase.storage.from(PHOTO_BUCKET).remove([previousPhoto]); // best effort
+        }
         return id;
       }
       const last = unwrap<{ sort_order: number }[]>(

@@ -1,10 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
-import { Sprout } from "lucide-react";
+import { Sprout, type LucideIcon } from "lucide-react";
 import { photoUrl } from "@/lib/photos";
 import { cn } from "@/lib/utils";
 
 /** Photo-first everywhere: shows the plant's photo, or a soft botanical placeholder. */
-export function PlantPhoto({ path, alt, className }: { path: string | null; alt: string; className?: string }) {
+export function PlantPhoto({
+  path,
+  alt,
+  className,
+  icon: Icon = Sprout,
+}: {
+  path: string | null | undefined;
+  alt: string;
+  className?: string;
+  icon?: LucideIcon;
+}) {
   const { data: url } = useQuery({
     queryKey: ["photo", path],
     enabled: !!path,
@@ -18,7 +28,7 @@ export function PlantPhoto({ path, alt, className }: { path: string | null; alt:
         <img src={url} alt={alt} loading="lazy" className="absolute inset-0 size-full object-cover" />
       ) : (
         <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-secondary to-accent/60">
-          <Sprout className="size-10 text-secondary-foreground/50" strokeWidth={1.5} />
+          <Icon className="size-10 text-secondary-foreground/50" strokeWidth={1.5} />
         </div>
       )}
     </div>

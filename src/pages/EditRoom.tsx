@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { ChevronLeft, Trash2 } from "lucide-react";
+import { ChevronLeft, DoorOpen, Trash2 } from "lucide-react";
+import { PhotoPicker } from "@/components/PhotoPicker";
 import { field } from "@/components/PlantForm";
 import { Button } from "@/components/ui/button";
 import { ensureLocation, useArchivedPlants, useDeleteRoom, useHousehold, usePlaces, usePlants, useSaveRoom } from "@/data/queries";
 import { LIGHT_LABEL } from "@/lib/watering";
+import { uploadPhoto } from "@/lib/photos";
 import type { LightLevel, Location, Room } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +40,8 @@ function RoomForm({ room, locations }: { room?: Room; locations: Location[] }) {
   const [name, setName] = useState(room?.name ?? "");
   const [light, setLight] = useState<LightLevel | null>(room?.light ?? null);
   const [locationId, setLocationId] = useState(room?.location_id ?? locations[0]?.id ?? "");
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,12 +52,21 @@ function RoomForm({ room, locations }: { room?: Room; locations: Location[] }) {
     e.preventDefault();
     if (!household) return;
     setError(null);
+    setSaving(true);
     try {
       const location_id = locationId || (await ensureLocation(household.id, locations));
-      await save.mutateAsync({ id: room?.id, household_id: household.id, input: { name: name.trim(), light, location_id } });
+      const photo_path = photo ? await uploadPhoto(household.id, "rooms", photo) : (room?.photo_path ?? null);
+      await save.mutateAsync({
+        id: room?.id,
+        household_id: household.id,
+        input: { name: name.trim(), light, location_id, photo_path },
+        previousPhoto: room?.photo_path,
+      });
       back();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save the room");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -110,9 +123,11 @@ function RoomForm({ room, locations }: { room?: Room; locations: Location[] }) {
           </p>
         </fieldset>
 
+        <PhotoPicker compact photoPath={room?.photo_path} onChange={setPhoto} placeholderIcon={DoorOpen} />
+
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button size="lg" className="w-full" disabled={save.isPending || !name.trim()}>
-          {save.isPending ? "Saving…" : room ? "Save changes" : "Add room"}
+        <Button size="lg" className="w-full" disabled={saving || !name.trim()}>
+          {saving ? "Saving…" : room ? "Save changes" : "Add room"}
         </Button>
       </form>
 
