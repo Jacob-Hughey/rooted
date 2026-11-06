@@ -3,7 +3,8 @@ import { Camera, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlantPhoto } from "@/components/PlantPhoto";
 import { usePlaces } from "@/data/queries";
-import { WATERING_PRESETS } from "@/lib/watering";
+import { LIGHT_LABEL, lightWaterHint, WATERING_PRESETS } from "@/lib/watering";
+import type { LightLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const field =
@@ -14,11 +15,13 @@ export interface PlantFormValues {
   nickname: string;
   species: string;
   roomId: string;
+  /** null = same as the room */
+  light: LightLevel | null;
   waterDays: number;
   notes: string;
 }
 
-export const EMPTY_PLANT: PlantFormValues = { name: "", nickname: "", species: "", roomId: "", waterDays: 7, notes: "" };
+export const EMPTY_PLANT: PlantFormValues = { name: "", nickname: "", species: "", roomId: "", light: null, waterDays: 7, notes: "" };
 
 const MIN_DAYS = 1;
 const MAX_DAYS = 120; // matches the check constraint on plants.water_interval_days
@@ -74,6 +77,8 @@ export function PlantForm({
   }
 
   const hasPhoto = !!preview || !!photoPath;
+  const roomLight = places?.rooms.find((r) => r.id === v.roomId)?.light ?? null;
+  const lightHint = lightWaterHint(v.light ?? roomLight);
 
   return (
     <form onSubmit={submit} className="space-y-6">
@@ -123,6 +128,23 @@ export function PlantForm({
             </optgroup>
           ))}
         </select>
+        <label className="block space-y-1.5">
+          <span className="text-sm text-muted-foreground">Light where it sits</span>
+          <select
+            value={v.light ?? ""}
+            onChange={(e) => set("light", (e.target.value || null) as LightLevel | null)}
+            className={field}
+          >
+            <option value="">
+              {v.roomId ? `Same as the room (${roomLight ? LIGHT_LABEL[roomLight] : "not set"})` : "Not set"}
+            </option>
+            {(Object.keys(LIGHT_LABEL) as LightLevel[]).map((l) => (
+              <option key={l} value={l}>
+                {LIGHT_LABEL[l]}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <fieldset className="space-y-3">
@@ -156,6 +178,7 @@ export function PlantForm({
             </Button>
           </div>
         </div>
+        {lightHint && <p className="rounded-[var(--radius-md)] bg-secondary px-3 py-2 text-sm">{lightHint}</p>}
         <p className="text-xs text-muted-foreground">
           The schedule stretches in winter and learns from "soil still damp" check-ins.
         </p>

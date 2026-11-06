@@ -52,6 +52,8 @@ export interface Plant {
   name: string;
   nickname: string | null;
   species: string | null;
+  /** Light where this plant sits. null = same as its room. */
+  light: LightLevel | null;
   cover_photo_path: string | null;
   notes: string | null;
   acquired_on: string | null;
@@ -70,6 +72,9 @@ export interface Plant {
 export interface PlantWithPlace extends Plant {
   room_name: string | null;
   location_name: string | null;
+  room_light: LightLevel | null;
+  /** plant.light ?? room light */
+  effective_light: LightLevel | null;
 }
 
 export interface CareEvent {

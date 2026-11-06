@@ -1,5 +1,5 @@
 import { differenceInCalendarDays, startOfDay } from "date-fns";
-import type { Plant } from "./types";
+import type { LightLevel, Plant } from "./types";
 
 export type WaterStatus = "overdue" | "today" | "soon" | "ok" | "unknown";
 
@@ -23,7 +23,7 @@ export function waterLabel(plant: Pick<Plant, "next_water_at">, now = new Date()
   return `In ${days} days`;
 }
 
-export const LIGHT_LABEL: Record<string, string> = {
+export const LIGHT_LABEL: Record<LightLevel, string> = {
   low: "Low light",
   medium: "Medium light",
   bright_indirect: "Bright, indirect",
@@ -37,3 +37,16 @@ export const WATERING_PRESETS: { label: string; days: number }[] = [
   { label: "Relaxed (ZZ, snake plant)", days: 14 },
   { label: "Desert (cacti, succulents)", days: 21 },
 ];
+
+/** A gentle hint for the watering picker. Light changes how fast soil dries; it doesn't change the numbers. */
+export function lightWaterHint(light: LightLevel | null): string | null {
+  switch (light) {
+    case "direct":
+    case "bright_indirect":
+      return "Bright spot: soil dries faster here, so it may want water a little sooner than usual.";
+    case "low":
+      return "Low light: soil stays damp longer here, so it can usually go a little longer between waterings.";
+    default:
+      return null;
+  }
+}

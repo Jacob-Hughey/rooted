@@ -28,6 +28,7 @@ export default function EditPlant() {
         name: v.name,
         nickname: v.nickname || null,
         species: v.species || null,
+        light: v.light,
         notes: v.notes || null,
         room_id: v.roomId || null,
         water_interval_days: v.waterDays,
@@ -65,6 +66,7 @@ export default function EditPlant() {
           nickname: plant.nickname ?? "",
           species: plant.species ?? "",
           roomId: plant.room_id ?? "",
+          light: plant.light,
           waterDays: plant.water_interval_days,
           notes: plant.notes ?? "",
         }}

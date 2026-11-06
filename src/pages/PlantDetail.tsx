@@ -4,7 +4,7 @@ import { ArchiveRestore, Camera, ChevronLeft, Droplet, Hand, Pencil, Sprout, Und
 import { PlantPhoto } from "@/components/PlantPhoto";
 import { Button } from "@/components/ui/button";
 import { useCareHistory, useLogCare, usePlant, useUndoCare, useUpdatePlant } from "@/data/queries";
-import { waterLabel } from "@/lib/watering";
+import { LIGHT_LABEL, waterLabel } from "@/lib/watering";
 import type { CareType } from "@/lib/types";
 
 const EVENT_LABEL: Record<CareType, string> = {
@@ -60,7 +60,7 @@ export default function PlantDetail() {
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-5 pt-16 text-white md:rounded-b-[var(--radius-xl)]">
           <h1 className="text-4xl">{plant.nickname ?? plant.name}</h1>
           <p className="opacity-85">
-            {[plant.species, plant.room_name].filter(Boolean).join(" · ")}
+            {[plant.species, plant.room_name, plant.effective_light && LIGHT_LABEL[plant.effective_light]].filter(Boolean).join(" · ")}
           </p>
         </div>
       </div>

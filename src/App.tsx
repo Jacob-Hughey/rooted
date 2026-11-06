@@ -11,6 +11,7 @@ const NewPlant = lazy(() => import("@/pages/NewPlant"));
 const EditPlant = lazy(() => import("@/pages/EditPlant"));
 const ArchivedPlants = lazy(() => import("@/pages/ArchivedPlants"));
 const Rooms = lazy(() => import("@/pages/Rooms"));
+const EditRoom = lazy(() => import("@/pages/EditRoom"));
 const Settings = lazy(() => import("@/pages/Settings"));
 
 export default function App() {
@@ -31,6 +32,8 @@ export default function App() {
             <Route path="plants/:id" element={<PlantDetail />} />
             <Route path="plants/:id/edit" element={<EditPlant />} />
             <Route path="rooms" element={<Rooms />} />
+            <Route path="rooms/new" element={<EditRoom />} />
+            <Route path="rooms/:id/edit" element={<EditRoom />} />
             <Route path="settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

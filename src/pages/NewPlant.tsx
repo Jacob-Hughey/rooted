@@ -19,6 +19,7 @@ export default function NewPlant() {
       name: v.name,
       nickname: v.nickname || undefined,
       species: v.species || undefined,
+      light: v.light,
       notes: v.notes || undefined,
       room_id: v.roomId || null,
       water_interval_days: v.waterDays,

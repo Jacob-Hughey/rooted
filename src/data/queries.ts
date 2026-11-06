@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PHOTO_BUCKET, supabase } from "@/lib/supabase";
 import { useAuth } from "@/auth/AuthProvider";
-import type { CareEvent, CareType, Household, Location, Plant, PlantWithPlace, Profile, Room } from "@/lib/types";
+import type { CareEvent, CareType, Household, LightLevel, Location, Plant, PlantWithPlace, Profile, Room } from "@/lib/types";
 
 function unwrap<T>({ data, error }: { data: T | null; error: unknown }): T {
   if (error) throw error;
@@ -144,6 +144,7 @@ export function useCreatePlant() {
       name: string;
       species?: string;
       nickname?: string;
+      light?: LightLevel | null;
       room_id?: string | null;
       water_interval_days: number;
       notes?: string;
@@ -159,7 +160,7 @@ export function useCreatePlant() {
 }
 
 export type PlantPatch = Partial<
-  Pick<Plant, "name" | "nickname" | "species" | "notes" | "room_id" | "water_interval_days" | "cover_photo_path" | "archived_at">
+  Pick<Plant, "name" | "nickname" | "species" | "light" | "notes" | "room_id" | "water_interval_days" | "cover_photo_path" | "archived_at">
 >;
 
 /** Edit a plant. Changing water_interval_days makes the database trigger recalculate next_water_at. */
@@ -222,6 +223,65 @@ export function useDeletePlant() {
       const drop = (list?: PlantWithPlace[]) => list?.filter((p) => p.id !== plant.id);
       qc.setQueryData(keys.plants, drop);
       qc.setQueryData(keys.archived, drop);
+    },
+  });
+}
+
+export interface RoomInput {
+  name: string;
+  light: LightLevel | null;
+  location_id: string;
+}
+
+/** Create a room (when no id is given) or edit one. Rooms are listed by sort_order, so new ones go last. */
+export function useSaveRoom() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, household_id, input }: { id?: string; household_id: string; input: RoomInput }) => {
+      if (id) {
+        unwrap(await supabase.from("rooms").update(input).eq("id", id));
+        return id;
+      }
+      const last = unwrap<{ sort_order: number }[]>(
+        await supabase.from("rooms").select("sort_order").eq("location_id", input.location_id).order("sort_order", { ascending: false }).limit(1),
+      );
+      const room = unwrap<{ id: string }>(
+        await supabase
+          .from("rooms")
+          .insert({ ...input, household_id, sort_order: (last[0]?.sort_order ?? -1) + 1 })
+          .select("id")
+          .single(),
+      );
+      return room.id;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.places });
+      qc.invalidateQueries({ queryKey: keys.plants }); // plant_status carries room_name
+    },
+  });
+}
+
+/** Make sure the household has at least one location ("Home") to put rooms in. */
+export async function ensureLocation(household_id: string, locations: Location[]): Promise<string> {
+  if (locations[0]) return locations[0].id;
+  const loc = unwrap<{ id: string }>(
+    await supabase.from("locations").insert({ household_id, name: "Home" }).select("id").single(),
+  );
+  return loc.id;
+}
+
+/** Delete a room. Its plants aren't deleted: the database sets their room to "none". */
+export function useDeleteRoom() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (room: Pick<Room, "id" | "photo_path">) => {
+      const deleted = unwrap<{ id: string }[]>(await supabase.from("rooms").delete().eq("id", room.id).select("id"));
+      if (deleted.length === 0) throw new Error("Couldn't delete that room — it may already be gone.");
+      if (room.photo_path) await supabase.storage.from(PHOTO_BUCKET).remove([room.photo_path]);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.places });
+      qc.invalidateQueries({ queryKey: keys.plants });
     },
   });
 }
