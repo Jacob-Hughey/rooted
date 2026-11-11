@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
-import { addDays, format } from "date-fns";
+import { format } from "date-fns";
 import { Check, Droplet, Plus } from "lucide-react";
 import { PageHeader } from "@/components/AppShell";
 import { PlantPhoto } from "@/components/PlantPhoto";
+import { FeaturedPlant, Nudges, pickFeatured, WeekAhead } from "@/components/TodayExtras";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { useLogCare, usePlaces, usePlants, useUndoCare } from "@/data/queries";
-import { daysUntilWater, displayName, waterLabel, waterStatus, wateredToday } from "@/lib/watering";
+import { displayName, waterLabel, waterStatus, wateredToday } from "@/lib/watering";
 import { clearBadge } from "@/lib/push";
 import type { CareEvent, Location, PlantWithPlace, Room } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -25,15 +26,11 @@ function buildRound(plants: PlantWithPlace[], places?: { locations: Location[]; 
   );
 
   const groups = new Map<string, RoomGroup>();
-  const later: PlantWithPlace[] = [];
 
   for (const p of plants) {
     const s = waterStatus(p);
     const due = s === "overdue" || s === "today" || s === "unknown";
-    if (!due && !wateredToday(p)) {
-      later.push(p);
-      continue;
-    }
+    if (!due && !wateredToday(p)) continue;
     const key = p.room_id ?? "none";
     if (!groups.has(key)) groups.set(key, { key, name: p.room_name ?? "No room yet", plants: [] });
     groups.get(key)!.plants.push(p);
@@ -43,17 +40,7 @@ function buildRound(plants: PlantWithPlace[], places?: { locations: Location[]; 
     .sort((a, b) => (roomOrder.get(a.key) ?? Infinity) - (roomOrder.get(b.key) ?? Infinity))
     .map((g) => ({ ...g, plants: g.plants.sort((a, b) => displayName(a).localeCompare(displayName(b))) }));
 
-  // The next six days, one line per day
-  const byDay = new Map<number, string[]>();
-  for (const p of later) {
-    const d = daysUntilWater(p);
-    if (d !== null && d >= 1 && d <= 6) byDay.set(d, [...(byDay.get(d) ?? []), displayName(p)]);
-  }
-  const comingUp = [...byDay.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([d, names]) => ({ label: d === 1 ? "Tomorrow" : format(addDays(new Date(), d), "EEEE"), names }));
-
-  return { round, comingUp };
+  return round;
 }
 
 export default function Today() {
@@ -69,7 +56,7 @@ export default function Today() {
 
   useEffect(clearBadge, []);
 
-  const { round, comingUp } = useMemo(() => buildRound(plants, places), [plants, places]);
+  const round = useMemo(() => buildRound(plants, places), [plants, places]);
   const all = round.flatMap((g) => g.plants);
   const isDone = (p: PlantWithPlace) => !!logged[p.id] || wateredToday(p);
   const doneCount = all.filter(isDone).length;
@@ -131,17 +118,16 @@ export default function Today() {
   }
 
   if (all.length === 0) {
-    const next = comingUp[0];
+    const featured = pickFeatured(plants);
     return (
       <>
         <PageHeader subtitle={date} title="Today" />
-        <p className="text-xl">Nothing needs water today.</p>
-        {next && (
-          <p className="mt-2 text-muted-foreground">
-            Next up {next.label === "Tomorrow" ? "tomorrow" : `on ${next.label}`}: {next.names.join(", ")}.
-          </p>
-        )}
-        <ComingUp days={comingUp.slice(next ? 1 : 0)} />
+        <p className="-mt-2 text-xl">Nothing needs water today.</p>
+        <div className="mt-7 space-y-10">
+          {featured && <FeaturedPlant plant={featured} />}
+          <WeekAhead plants={plants} includeToday={false} />
+          <Nudges plants={plants} />
+        </div>
       </>
     );
   }
@@ -216,25 +202,11 @@ export default function Today() {
         ))}
       </div>
 
-      <ComingUp days={comingUp} />
+      <div className="mt-10 space-y-10">
+        <WeekAhead plants={plants} />
+        <Nudges plants={plants} />
+      </div>
     </>
-  );
-}
-
-function ComingUp({ days }: { days: { label: string; names: string[] }[] }) {
-  if (days.length === 0) return null;
-  return (
-    <section className="mt-10">
-      <h2 className="mb-2 text-xl text-muted-foreground">Coming up</h2>
-      <dl className="grid grid-cols-[6.5rem_1fr] gap-y-1.5">
-        {days.map((d) => (
-          <div key={d.label} className="contents">
-            <dt className="text-muted-foreground">{d.label}</dt>
-            <dd>{d.names.join(", ")}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
   );
 }
 

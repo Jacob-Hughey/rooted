@@ -198,6 +198,21 @@ async function recordPhoto(household_id: string, plant_id: string, path: string)
   unwrap(await supabase.from("plant_photos").insert({ household_id, plant_id, path }));
 }
 
+/** When each plant last had a photo taken (plant id → ISO date). Used for "no photo in a while" nudges. */
+export function useLatestPhotoDates() {
+  return useQuery({
+    queryKey: ["photos", "latest"],
+    queryFn: async () => {
+      const rows = unwrap<{ plant_id: string; taken_at: string }[]>(
+        await supabase.from("plant_photos").select("plant_id, taken_at").order("taken_at", { ascending: false }),
+      );
+      const latest = new Map<string, string>();
+      for (const r of rows) if (!latest.has(r.plant_id)) latest.set(r.plant_id, r.taken_at);
+      return latest;
+    },
+  });
+}
+
 /** Every photo of a plant, newest first. */
 export function usePlantPhotos(plantId: string) {
   return useQuery({
