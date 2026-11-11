@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PHOTO_BUCKET, supabase } from "@/lib/supabase";
+import { uploadPhoto } from "@/lib/photos";
 import { useAuth } from "@/auth/AuthProvider";
-import type { CareEvent, CareType, Household, LightLevel, Location, Plant, PlantWithPlace, Profile, Room } from "@/lib/types";
+import type { CareEvent, CareType, Household, LightLevel, Location, Plant, PlantPhotoRow, PlantWithPlace, Profile, Room } from "@/lib/types";
 
 function unwrap<T>({ data, error }: { data: T | null; error: unknown }): T {
   if (error) throw error;
@@ -15,6 +16,7 @@ export const keys = {
   archived: ["plants", "archived"] as const, // under "plants" so plant edits refresh it too
   plant: (id: string) => ["plants", id] as const,
   history: (id: string) => ["history", id] as const,
+  photos: (id: string) => ["photos", id] as const,
   places: ["places"] as const,
 };
 
@@ -184,13 +186,92 @@ export function useUpdatePlant() {
       }
     },
     // keys.plants is a prefix of keys.plant(id), so this refreshes the list and the detail page.
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.plants }),
+    onSuccess: (_d, { plant }) => {
+      qc.invalidateQueries({ queryKey: keys.plants });
+      qc.invalidateQueries({ queryKey: keys.photos(plant.id) });
+    },
   });
 }
 
 /** Keep every cover photo in plant_photos so the future photo timeline has the full history. */
 async function recordPhoto(household_id: string, plant_id: string, path: string) {
   unwrap(await supabase.from("plant_photos").insert({ household_id, plant_id, path }));
+}
+
+/** Every photo of a plant, newest first. */
+export function usePlantPhotos(plantId: string) {
+  return useQuery({
+    queryKey: keys.photos(plantId),
+    queryFn: async () =>
+      unwrap<PlantPhotoRow[]>(
+        await supabase.from("plant_photos").select("*").eq("plant_id", plantId).order("taken_at", { ascending: false }),
+      ),
+  });
+}
+
+/** Add a photo to the plant's gallery. The newest photo becomes the cover. */
+export function useAddPlantPhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ plant, file }: { plant: Pick<Plant, "id" | "household_id">; file: File }) => {
+      const path = await uploadPhoto(plant.household_id, "plants", file);
+      await recordPhoto(plant.household_id, plant.id, path);
+      unwrap(await supabase.from("plants").update({ cover_photo_path: path }).eq("id", plant.id));
+      return path;
+    },
+    onSuccess: (_path, { plant }) => {
+      qc.invalidateQueries({ queryKey: keys.plants });
+      qc.invalidateQueries({ queryKey: keys.photos(plant.id) });
+    },
+  });
+}
+
+/** Make an existing gallery photo the cover (no new gallery entry). */
+export function useSetCover() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ plantId, path }: { plantId: string; path: string }) =>
+      unwrap(await supabase.from("plants").update({ cover_photo_path: path }).eq("id", plantId)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.plants }),
+  });
+}
+
+/**
+ * Remove a photo from the gallery. If it was the cover, the next newest photo takes over.
+ * The file is removed from storage unless something else still points at it.
+ */
+export function useDeletePhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ photo, plant }: { photo: PlantPhotoRow; plant: Pick<Plant, "id" | "cover_photo_path"> }) => {
+      if (plant.cover_photo_path === photo.path) {
+        const next = unwrap<{ path: string }[]>(
+          await supabase
+            .from("plant_photos")
+            .select("path")
+            .eq("plant_id", plant.id)
+            .neq("id", photo.id)
+            .order("taken_at", { ascending: false })
+            .limit(1),
+        );
+        unwrap(await supabase.from("plants").update({ cover_photo_path: next[0]?.path ?? null }).eq("id", plant.id));
+      }
+      unwrap(await supabase.from("plant_photos").delete().eq("id", photo.id));
+
+      const [others, events] = await Promise.all([
+        supabase.from("plant_photos").select("id").eq("path", photo.path).limit(1),
+        supabase.from("care_events").select("id").eq("photo_path", photo.path).limit(1),
+      ]);
+      if (!unwrap<unknown[]>(others).length && !unwrap<unknown[]>(events).length) {
+        const { error } = await supabase.storage.from(PHOTO_BUCKET).remove([photo.path]);
+        if (error) console.warn("Photo removed from the gallery, but its file wasn't deleted", error);
+      }
+    },
+    onSuccess: (_d, { plant }) => {
+      qc.invalidateQueries({ queryKey: keys.plants });
+      qc.invalidateQueries({ queryKey: keys.photos(plant.id) });
+    },
+  });
 }
 
 export function useInvite() {

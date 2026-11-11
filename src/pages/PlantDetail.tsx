@@ -2,15 +2,27 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { format } from "date-fns";
 import { ArchiveRestore, Camera, ChevronLeft, Droplet, NotebookPen, Plus } from "lucide-react";
+import { AddPhotoButton } from "@/components/AddPhotoButton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { NoteEditor } from "@/components/NoteEditor";
 import { SwipeRow } from "@/components/SwipeRow";
 import { PlantPhoto } from "@/components/PlantPhoto";
+import { PhotoViewer } from "@/components/PhotoViewer";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
-import { useCareHistory, useLogCare, usePlant, useUndoCare, useUpdateCareNote, useUpdatePlant } from "@/data/queries";
+import {
+  useAddPlantPhoto,
+  useCareHistory,
+  useDeletePhoto,
+  useLogCare,
+  usePlant,
+  usePlantPhotos,
+  useUndoCare,
+  useUpdateCareNote,
+  useUpdatePlant,
+} from "@/data/queries";
 import { daysUntilWater, displayName, LIGHT_PHRASE } from "@/lib/watering";
-import type { CareEvent, CareType, PlantWithPlace } from "@/lib/types";
+import type { CareEvent, CareType, PlantPhotoRow, PlantWithPlace } from "@/lib/types";
 
 const EVENT_LABEL: Record<CareType, string> = {
   water: "Watered",
@@ -120,11 +132,33 @@ export default function PlantDetail() {
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
   const [swipedEvent, setSwipedEvent] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<CareEvent | null>(null);
+  const { data: photos = [] } = usePlantPhotos(id);
+  const addPhoto = useAddPlantPhoto();
+  const deletePhoto = useDeletePhoto();
+  const [viewing, setViewing] = useState<number | null>(null);
+  const [deletingPhoto, setDeletingPhoto] = useState<PlantPhotoRow | null>(null);
 
   if (!plant) return <div className="-mx-5 aspect-[4/5] max-h-[45dvh] animate-pulse bg-muted md:mx-0 md:rounded-[var(--radius-xl)]" />;
 
   const name = displayName(plant);
   const place = [plant.room_name, plant.effective_light && LIGHT_PHRASE[plant.effective_light]].filter(Boolean).join(", ");
+
+  function onPickPhoto(file: File) {
+    addPhoto.mutate(
+      { plant: plant!, file },
+      {
+        onSuccess: () => toast("Photo added"),
+        onError: () => toast("Couldn't add the photo. Check your connection and try again."),
+      },
+    );
+  }
+
+  // History shows care events and photos together, newest first
+  type Entry = { kind: "event"; ev: CareEvent; at: string } | { kind: "photo"; photo: PlantPhotoRow; at: string };
+  const entries: Entry[] = [
+    ...history.map((ev): Entry => ({ kind: "event", ev, at: ev.performed_at })),
+    ...photos.map((photo): Entry => ({ kind: "photo", photo, at: photo.taken_at })),
+  ].sort((a, b) => b.at.localeCompare(a.at));
 
   function logCare(type: CareType, note?: string) {
     log.mutate(
@@ -154,19 +188,29 @@ export default function PlantDetail() {
         >
           <ChevronLeft className="size-6" />
         </button>
-        <Link
-          to={`/plants/${plant.id}/edit`}
-          className="absolute right-4 top-[max(env(safe-area-inset-top),1rem)] flex h-11 items-center rounded-full bg-card px-4 font-bold text-foreground"
-        >
-          Edit
-        </Link>
-        {!plant.cover_photo_path && (
-          <Link
-            to={`/plants/${plant.id}/edit`}
-            className="absolute inset-x-0 bottom-6 mx-auto flex h-11 w-fit items-center gap-2 rounded-[var(--radius)] bg-card px-4 font-medium"
-          >
-            <Camera className="size-5" /> Add a photo
+        <div className="absolute right-4 top-[max(env(safe-area-inset-top),1rem)] flex gap-2">
+          {plant.cover_photo_path && (
+            <AddPhotoButton
+              onPick={onPickPhoto}
+              disabled={addPhoto.isPending}
+              label="Add a photo"
+              className="grid size-11 cursor-pointer place-items-center rounded-full bg-card text-foreground aria-disabled:opacity-60"
+            >
+              <Camera className="size-5" />
+            </AddPhotoButton>
+          )}
+          <Link to={`/plants/${plant.id}/edit`} className="flex h-11 items-center rounded-full bg-card px-4 font-bold text-foreground">
+            Edit
           </Link>
+        </div>
+        {!plant.cover_photo_path && (
+          <AddPhotoButton
+            onPick={onPickPhoto}
+            disabled={addPhoto.isPending}
+            className="absolute inset-x-0 bottom-6 mx-auto flex h-11 w-fit cursor-pointer items-center gap-2 rounded-[var(--radius)] bg-card px-4 font-medium"
+          >
+            <Camera className="size-5" /> {addPhoto.isPending ? "Adding photo…" : "Add a photo"}
+          </AddPhotoButton>
         )}
       </div>
 
@@ -223,14 +267,83 @@ export default function PlantDetail() {
         </div>
       )}
 
+      {(photos.length > 0 || addPhoto.isPending) && (
+        <section className="mt-9">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-2xl">Photos</h2>
+            <span className="text-muted-foreground">{photos.length === 1 ? "1 photo" : `${photos.length} photos`}</span>
+          </div>
+          <ul className="-mx-5 mt-2 flex snap-x gap-3 overflow-x-auto px-5 pb-1 scrollbar-none md:mx-0 md:px-0">
+            <li className="shrink-0 snap-start">
+              <AddPhotoButton
+                onPick={onPickPhoto}
+                disabled={addPhoto.isPending}
+                className="flex h-[7.5rem] w-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-[10px] border-[1.5px] border-dashed border-input/70 text-sm text-muted-foreground aria-disabled:opacity-60"
+              >
+                <Camera className="size-6" strokeWidth={1.6} />
+                {addPhoto.isPending ? "Adding…" : "Add photo"}
+              </AddPhotoButton>
+            </li>
+            {addPhoto.isPending && (
+              <li className="shrink-0" aria-hidden="true">
+                <div className="h-[7.5rem] w-24 animate-pulse rounded-[10px] bg-muted" />
+              </li>
+            )}
+            {photos.map((ph, i) => (
+              <li key={ph.id} className="shrink-0 snap-start">
+                <button onClick={() => setViewing(i)} className="block w-24 rounded-[10px] text-left">
+                  <PlantPhoto path={ph.path} alt="" className="h-[7.5rem] w-24 rounded-[10px]" />
+                  <span className="mt-1 block text-sm">{format(new Date(ph.taken_at), "MMM d")}</span>
+                  <span className="sr-only">, photo of {name}{ph.path === plant.cover_photo_path ? ", cover photo" : ""}</span>
+                  {ph.path === plant.cover_photo_path && (
+                    <span aria-hidden="true" className="block text-xs text-muted-foreground">Cover</span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="mt-9">
         <h2 className="text-2xl">History</h2>
-        {history.length > 0 && <p className="mb-2 text-sm text-muted-foreground">Swipe left on an entry to delete it.</p>}
-        {history.length === 0 ? (
-          <p className="text-muted-foreground">Nothing logged yet. Waterings and checks will show up here.</p>
+        {entries.length > 0 && <p className="mb-2 text-sm text-muted-foreground">Swipe left on an entry to delete it.</p>}
+        {entries.length === 0 ? (
+          <p className="text-muted-foreground">Nothing logged yet. Waterings, notes and photos will show up here.</p>
         ) : (
           <ol>
-            {history.map((ev) => (
+            {entries.map((en) => {
+              if (en.kind === "photo") {
+                const ph = en.photo;
+                return (
+                  <li key={`photo-${ph.id}`} className="border-b last:border-b-0">
+                    <SwipeRow
+                      open={swipedEvent === ph.id}
+                      onOpenChange={(o) => setSwipedEvent(o ? ph.id : null)}
+                      onDelete={() => setDeletingPhoto(ph)}
+                      deleteLabel={`Delete photo, ${format(new Date(ph.taken_at), "MMMM d")}`}
+                    >
+                      <button
+                        onClick={() => setViewing(photos.indexOf(ph))}
+                        className="grid w-full grid-cols-[4.5rem_1fr] items-center gap-x-2 py-2 text-left"
+                      >
+                        <time dateTime={ph.taken_at} className="text-muted-foreground">
+                          {format(new Date(ph.taken_at), "MMM d")}
+                        </time>
+                        <span className="flex items-center gap-3">
+                          <PlantPhoto path={ph.path} alt="" className="size-11 shrink-0 rounded-[8px]" />
+                          <span>
+                            New photo
+                            {ph.caption && <span className="block text-sm text-muted-foreground">{ph.caption}</span>}
+                          </span>
+                        </span>
+                      </button>
+                    </SwipeRow>
+                  </li>
+                );
+              }
+              const ev = en.ev;
+              return (
               <li key={ev.id} className="border-b last:border-b-0">
                 <SwipeRow
                   open={swipedEvent === ev.id}
@@ -284,7 +397,8 @@ export default function PlantDetail() {
                 </div>
                 </SwipeRow>
               </li>
-            ))}
+              );
+            })}
           </ol>
         )}
         <ConfirmDialog
@@ -316,7 +430,48 @@ export default function PlantDetail() {
             </p>
           )}
         </ConfirmDialog>
+        <ConfirmDialog
+          open={!!deletingPhoto}
+          title="Delete this photo?"
+          confirmLabel="Delete photo"
+          busy={deletePhoto.isPending}
+          onCancel={() => {
+            setDeletingPhoto(null);
+            setSwipedEvent(null);
+          }}
+          onConfirm={() =>
+            deletingPhoto &&
+            deletePhoto.mutate(
+              { photo: deletingPhoto, plant },
+              {
+                onSuccess: () => {
+                  setDeletingPhoto(null);
+                  setSwipedEvent(null);
+                  toast("Photo deleted");
+                },
+                onError: () => toast("Couldn't delete it. Check your connection and try again."),
+              },
+            )
+          }
+        >
+          {deletingPhoto && (
+            <p>
+              The photo from {format(new Date(deletingPhoto.taken_at), "MMMM d")} will be removed from {name}’s photos.
+              {deletingPhoto.path === plant.cover_photo_path && photos.length > 1 && " The next newest photo becomes the cover."}
+            </p>
+          )}
+        </ConfirmDialog>
       </section>
+
+      {viewing !== null && photos.length > 0 && (
+        <PhotoViewer
+          plant={plant}
+          name={name}
+          photos={photos}
+          startIndex={Math.min(viewing, photos.length - 1)}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
   );
 }

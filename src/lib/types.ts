@@ -77,6 +77,16 @@ export interface PlantWithPlace extends Plant {
   effective_light: LightLevel | null;
 }
 
+/** Row from plant_photos: every photo a plant has had, including old covers. */
+export interface PlantPhotoRow {
+  id: string;
+  household_id: string;
+  plant_id: string;
+  path: string;
+  caption: string | null;
+  taken_at: string;
+}
+
 export interface CareEvent {
   id: string;
   household_id: string;
