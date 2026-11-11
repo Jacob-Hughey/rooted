@@ -1,10 +1,14 @@
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { format } from "date-fns";
-import { ArchiveRestore, Camera, ChevronLeft, Droplet } from "lucide-react";
+import { ArchiveRestore, Camera, ChevronLeft, Droplet, NotebookPen, Plus } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { NoteEditor } from "@/components/NoteEditor";
+import { SwipeRow } from "@/components/SwipeRow";
 import { PlantPhoto } from "@/components/PlantPhoto";
 import { useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
-import { useCareHistory, useLogCare, usePlant, useUndoCare, useUpdatePlant } from "@/data/queries";
+import { useCareHistory, useLogCare, usePlant, useUndoCare, useUpdateCareNote, useUpdatePlant } from "@/data/queries";
 import { daysUntilWater, displayName, LIGHT_PHRASE } from "@/lib/watering";
 import type { CareEvent, CareType, PlantWithPlace } from "@/lib/types";
 
@@ -19,6 +23,12 @@ const EVENT_LABEL: Record<CareType, string> = {
   note: "Note",
   photo: "New photo",
 };
+
+/** Short name for a history entry: the note's opening words, or the action. */
+function entryName(ev: CareEvent) {
+  if (ev.type === "note" && ev.note) return ev.note.length > 40 ? `${ev.note.slice(0, 40).trimEnd()}…` : ev.note;
+  return EVENT_LABEL[ev.type];
+}
 
 /** Toast wording per action, matching the button that was tapped. */
 const LOGGED: Partial<Record<CareType, string>> = {
@@ -48,6 +58,54 @@ function Rhythm({ plant }: { plant: PlantWithPlace }) {
   );
 }
 
+/** The plant's standing note ("about this plant"), edited in place. Stored on plants.notes. */
+function AboutNote({ plant }: { plant: PlantWithPlace }) {
+  const [editing, setEditing] = useState(false);
+  const update = useUpdatePlant();
+  const toast = useToast();
+
+  if (editing) {
+    return (
+      <NoteEditor
+        initial={plant.notes ?? ""}
+        label="About this plant"
+        placeholder="Where it came from, quirks, what it likes"
+        saving={update.isPending}
+        onCancel={() => setEditing(false)}
+        onSave={(text) =>
+          update.mutate(
+            { plant, patch: { notes: text || null } },
+            {
+              onSuccess: () => {
+                setEditing(false);
+                toast(text ? "Note saved" : "Note removed");
+              },
+              onError: () => toast("Couldn't save the note. Check your connection and try again."),
+            },
+          )
+        }
+      />
+    );
+  }
+
+  if (!plant.notes) {
+    return (
+      <button onClick={() => setEditing(true)} className="flex h-11 items-center gap-1.5 font-medium text-water">
+        <Plus className="size-5" /> Add a note about this plant
+      </button>
+    );
+  }
+
+  return (
+    <div className="max-w-prose">
+      <p className="whitespace-pre-line">{plant.notes}</p>
+      <button onClick={() => setEditing(true)} className="-ml-1 mt-1 h-11 px-1 text-sm font-medium text-water">
+        Edit note
+      </button>
+    </div>
+  );
+}
+
 export default function PlantDetail() {
   const { id = "" } = useParams();
   const nav = useNavigate();
@@ -56,19 +114,29 @@ export default function PlantDetail() {
   const log = useLogCare();
   const undo = useUndoCare();
   const update = useUpdatePlant();
+  const updateNote = useUpdateCareNote();
   const toast = useToast();
+  const [writingNote, setWritingNote] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<string | null>(null);
+  const [swipedEvent, setSwipedEvent] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<CareEvent | null>(null);
 
   if (!plant) return <div className="-mx-5 aspect-[4/5] max-h-[45dvh] animate-pulse bg-muted md:mx-0 md:rounded-[var(--radius-xl)]" />;
 
   const name = displayName(plant);
   const place = [plant.room_name, plant.effective_light && LIGHT_PHRASE[plant.effective_light]].filter(Boolean).join(", ");
 
-  function logCare(type: CareType) {
+  function logCare(type: CareType, note?: string) {
     log.mutate(
-      { plant: plant!, type },
+      { plant: plant!, type, note },
       {
-        onSuccess: (ev: CareEvent) =>
-          toast(`${name} ${LOGGED[type] ?? "updated"}`, { label: "Undo", onClick: () => undo.mutate(ev) }),
+        onSuccess: (ev: CareEvent) => {
+          if (type === "note") setWritingNote(false);
+          toast(type === "note" ? "Note added" : `${name} ${LOGGED[type] ?? "updated"}`, {
+            label: "Undo",
+            onClick: () => undo.mutate(ev),
+          });
+        },
         onError: () => toast("Couldn't save. Check your connection and try again."),
       },
     );
@@ -108,6 +176,10 @@ export default function PlantDetail() {
         {place && <p className="text-muted-foreground">{place}</p>}
       </div>
 
+      <div className="mt-3">
+        <AboutNote plant={plant} />
+      </div>
+
       {plant.archived_at && (
         <div className="mt-5 flex items-center justify-between gap-3 rounded-[var(--radius-lg)] bg-secondary p-4">
           <p>Archived {format(new Date(plant.archived_at), "MMMM d, yyyy")}</p>
@@ -131,18 +203,43 @@ export default function PlantDetail() {
         <Button variant="outline" disabled={log.isPending} onClick={() => logCare("fertilize")}>
           Fertilized
         </Button>
+        {!writingNote && (
+          <Button variant="outline" className="col-span-2" onClick={() => setWritingNote(true)}>
+            <NotebookPen /> Note for today
+          </Button>
+        )}
       </div>
 
-      {plant.notes && <p className="mt-6 max-w-prose whitespace-pre-line">{plant.notes}</p>}
+      {writingNote && (
+        <div className="mt-3">
+          <NoteEditor
+            label={`Note for today about ${name}`}
+            placeholder="New leaf, a pest spotted, moved it to the window…"
+            saveLabel="Add note"
+            saving={log.isPending}
+            onCancel={() => setWritingNote(false)}
+            onSave={(text) => logCare("note", text)}
+          />
+        </div>
+      )}
 
       <section className="mt-9">
-        <h2 className="mb-2 text-2xl">History</h2>
+        <h2 className="text-2xl">History</h2>
+        {history.length > 0 && <p className="mb-2 text-sm text-muted-foreground">Swipe left on an entry to delete it.</p>}
         {history.length === 0 ? (
           <p className="text-muted-foreground">Nothing logged yet. Waterings and checks will show up here.</p>
         ) : (
           <ol>
             {history.map((ev) => (
-              <li key={ev.id} className="grid grid-cols-[4.5rem_1fr] gap-x-2 border-b py-2.5 last:border-b-0">
+              <li key={ev.id} className="border-b last:border-b-0">
+                <SwipeRow
+                  open={swipedEvent === ev.id}
+                  onOpenChange={(o) => setSwipedEvent(o ? ev.id : null)}
+                  onDelete={() => setDeleting(ev)}
+                  deleteLabel={`Delete ${entryName(ev)}, ${format(new Date(ev.performed_at), "MMMM d")}`}
+                  disabled={editingEvent === ev.id}
+                >
+                <div className="grid grid-cols-[4.5rem_1fr] gap-x-2 py-2.5">
                 <time
                   dateTime={ev.performed_at}
                   title={format(new Date(ev.performed_at), "PPpp")}
@@ -150,14 +247,75 @@ export default function PlantDetail() {
                 >
                   {format(new Date(ev.performed_at), "MMM d")}
                 </time>
-                <div>
-                  <p>{EVENT_LABEL[ev.type]}</p>
-                  {ev.note && <p className="text-sm text-muted-foreground">{ev.note}</p>}
+                {editingEvent === ev.id ? (
+                  <NoteEditor
+                    initial={ev.note ?? ""}
+                    label={`Edit note from ${format(new Date(ev.performed_at), "MMMM d")}`}
+                    saving={updateNote.isPending}
+                    onCancel={() => setEditingEvent(null)}
+                    onSave={(text) =>
+                      text
+                        ? updateNote.mutate({ ev, note: text }, { onSuccess: () => setEditingEvent(null) })
+                        : undo.mutate(ev, { onSuccess: () => setEditingEvent(null) })
+                    }
+                    onDelete={
+                      ev.type === "note"
+                        ? () => undo.mutate(ev, { onSuccess: () => { setEditingEvent(null); toast("Note deleted"); } })
+                        : undefined
+                    }
+                  />
+                ) : ev.type === "note" ? (
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="whitespace-pre-line">{ev.note}</p>
+                    <button
+                      onClick={() => setEditingEvent(ev.id)}
+                      className="-my-2 h-10 shrink-0 px-1 text-sm font-medium text-water"
+                      aria-label={`Edit note from ${format(new Date(ev.performed_at), "MMMM d")}`}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <p>{EVENT_LABEL[ev.type]}</p>
+                    {ev.note && <p className="whitespace-pre-line text-sm text-muted-foreground">{ev.note}</p>}
+                  </div>
+                )}
                 </div>
+                </SwipeRow>
               </li>
             ))}
           </ol>
         )}
+        <ConfirmDialog
+          open={!!deleting}
+          title="Delete this entry?"
+          confirmLabel="Delete entry"
+          busy={undo.isPending}
+          onCancel={() => {
+            setDeleting(null);
+            setSwipedEvent(null);
+          }}
+          onConfirm={() =>
+            deleting &&
+            undo.mutate(deleting, {
+              onSuccess: () => {
+                setDeleting(null);
+                setSwipedEvent(null);
+                toast("Entry deleted");
+              },
+              onError: () => toast("Couldn't delete it. Check your connection and try again."),
+            })
+          }
+        >
+          {deleting && (
+            <p>
+              “{entryName(deleting)}” on {format(new Date(deleting.performed_at), "MMMM d")} will be removed from {name}’s history.
+              {deleting.type === "water" && " The next watering will be worked out from the one before it."}
+              {deleting.type === "check_moist" && " The watering schedule goes back to how it was before this check-in."}
+            </p>
+          )}
+        </ConfirmDialog>
       </section>
     </div>
   );

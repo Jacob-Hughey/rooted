@@ -136,6 +136,16 @@ export function useUndoCare() {
   });
 }
 
+/** Change the text of a history entry (used for daily notes). */
+export function useUpdateCareNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ev, note }: { ev: CareEvent; note: string }) =>
+      unwrap(await supabase.from("care_events").update({ note }).eq("id", ev.id)),
+    onSuccess: (_d, { ev }) => qc.invalidateQueries({ queryKey: keys.history(ev.plant_id) }),
+  });
+}
+
 export function useCreatePlant() {
   const qc = useQueryClient();
   return useMutation({

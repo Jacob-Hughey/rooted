@@ -156,7 +156,7 @@ export function PlantForm({
       </fieldset>
 
       <textarea
-        placeholder="Notes (optional) — where it came from, quirks, what it likes"
+        placeholder="About this plant (optional): where it came from, quirks, what it likes"
         value={v.notes}
         onChange={(e) => set("notes", e.target.value)}
         rows={3}
