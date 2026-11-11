@@ -20,10 +20,10 @@ export default function SignIn() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-between bg-[radial-gradient(ellipse_at_top,var(--secondary),transparent_60%)] px-6 pb-safe pt-safe">
+    <div className="flex min-h-dvh flex-col items-center justify-between px-6 pb-safe pt-safe">
       <div />
       <div className="w-full max-w-sm text-center">
-        <div className="mx-auto mb-6 grid size-16 place-items-center rounded-3xl bg-primary text-primary-foreground shadow-lg">
+        <div className="mx-auto mb-6 grid size-16 place-items-center rounded-[var(--radius-xl)] bg-primary text-primary-foreground">
           <Leaf className="size-8" strokeWidth={1.75} />
         </div>
         <h1 className="text-4xl">Rooted</h1>
@@ -56,7 +56,7 @@ export default function SignIn() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-12 w-full rounded-full border bg-card px-5 text-base outline-none focus:ring-2 focus:ring-ring"
+                className="h-12 w-full rounded-[var(--radius-md)] border border-input bg-card px-5 text-base outline-none focus:ring-2 focus:ring-ring"
               />
               <Button size="lg" className="w-full" disabled={busy}>
                 Send me a code
@@ -79,7 +79,7 @@ export default function SignIn() {
                 placeholder="123456"
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                className="h-12 w-full rounded-full border bg-card px-5 text-center text-xl tracking-[0.4em] outline-none focus:ring-2 focus:ring-ring"
+                className="h-12 w-full rounded-[var(--radius-md)] border border-input bg-card px-5 text-center text-xl tracking-[0.4em] outline-none focus:ring-2 focus:ring-ring"
               />
               <Button size="lg" className="w-full" disabled={busy || code.length < 6}>
                 Sign in

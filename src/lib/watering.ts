@@ -16,12 +16,34 @@ export function waterStatus(plant: Pick<Plant, "next_water_at">, now = new Date(
 export function waterLabel(plant: Pick<Plant, "next_water_at">, now = new Date()): string {
   if (!plant.next_water_at) return "Not watered yet";
   const days = differenceInCalendarDays(startOfDay(new Date(plant.next_water_at)), startOfDay(now));
-  if (days < -1) return `${-days} days overdue`;
-  if (days === -1) return "1 day overdue";
-  if (days === 0) return "Water today";
+  if (days < -1) return `${-days} days late`;
+  if (days === -1) return "1 day late";
+  if (days === 0) return "Due today";
   if (days === 1) return "Tomorrow";
   return `In ${days} days`;
 }
+
+/** Days until the next watering (negative = late), or null if it has never been watered. */
+export function daysUntilWater(plant: Pick<Plant, "next_water_at">, now = new Date()): number | null {
+  if (!plant.next_water_at) return null;
+  return differenceInCalendarDays(startOfDay(new Date(plant.next_water_at)), startOfDay(now));
+}
+
+/** Watered at some point today (device's local day). */
+export function wateredToday(plant: Pick<Plant, "last_watered_at">, now = new Date()): boolean {
+  return !!plant.last_watered_at && differenceInCalendarDays(new Date(plant.last_watered_at), now) === 0;
+}
+
+/** The name she'd use: the nickname if she gave one, otherwise the plant's name. */
+export const displayName = (plant: Pick<Plant, "name" | "nickname">) => plant.nickname || plant.name;
+
+/** Light as it reads mid-sentence: "Living room, bright indirect light". */
+export const LIGHT_PHRASE: Record<LightLevel, string> = {
+  low: "low light",
+  medium: "medium light",
+  bright_indirect: "bright indirect light",
+  direct: "direct sun",
+};
 
 export const LIGHT_LABEL: Record<LightLevel, string> = {
   low: "Low light",

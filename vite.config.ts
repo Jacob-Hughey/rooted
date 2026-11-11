@@ -13,6 +13,8 @@ export default defineConfig({
       strategies: "injectManifest",
       srcDir: "src",
       filename: "sw.ts",
+      // Precache the bundled fonts and icons too, not just js/css/html, so the app looks right offline
+      injectManifest: { globPatterns: ["**/*.{js,css,html,woff2,svg,png}"] },
       registerType: "autoUpdate",
       injectRegister: false, // registered manually in src/lib/pwa.ts
       devOptions: { enabled: true, type: "module" },
@@ -25,8 +27,8 @@ export default defineConfig({
         scope: "/",
         display: "standalone", // required for Web Push on iOS
         orientation: "any",
-        background_color: "#f6f1e7",
-        theme_color: "#f6f1e7",
+        background_color: "#e9efec",
+        theme_color: "#e9efec",
         icons: [
           { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },

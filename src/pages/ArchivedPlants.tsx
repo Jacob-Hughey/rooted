@@ -26,7 +26,7 @@ export default function ArchivedPlants() {
 
       <ul className="space-y-3">
         {plants.map((p) => (
-          <li key={p.id} className="flex items-center gap-3 rounded-[var(--radius-lg)] bg-card p-3 shadow-sm">
+          <li key={p.id} className="flex items-center gap-3 rounded-[var(--radius-lg)] bg-card p-3">
             <Link to={`/plants/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3">
               <PlantPhoto path={p.cover_photo_path} alt={p.name} className="size-14 shrink-0 rounded-[var(--radius-md)]" />
               <div className="min-w-0">

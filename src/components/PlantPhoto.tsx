@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Sprout, type LucideIcon } from "lucide-react";
+import { Leaf, type LucideIcon } from "lucide-react";
 import { photoUrl } from "@/lib/photos";
 import { cn } from "@/lib/utils";
 
@@ -8,7 +8,7 @@ export function PlantPhoto({
   path,
   alt,
   className,
-  icon: Icon = Sprout,
+  icon: Icon = Leaf,
 }: {
   path: string | null | undefined;
   alt: string;
@@ -27,8 +27,8 @@ export function PlantPhoto({
       {url ? (
         <img src={url} alt={alt} loading="lazy" className="absolute inset-0 size-full object-cover" />
       ) : (
-        <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-secondary to-accent/60">
-          <Icon className="size-10 text-secondary-foreground/50" strokeWidth={1.5} />
+        <div className="absolute inset-0 grid place-items-center">
+          <Icon className="size-[38%] max-h-24 text-done/60" strokeWidth={1.25} />
         </div>
       )}
     </div>

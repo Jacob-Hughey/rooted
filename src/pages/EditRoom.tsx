@@ -101,7 +101,7 @@ function RoomForm({ room, locations }: { room?: Room; locations: Location[] }) {
         )}
 
         <fieldset className="space-y-3">
-          <legend className="mb-2 font-display text-lg">How much light?</legend>
+          <legend className="mb-2 text-lg font-bold">How much light?</legend>
           <div className="grid grid-cols-2 gap-2">
             {LIGHT_OPTIONS.map((o) => (
               <button

@@ -8,7 +8,7 @@ import type { LightLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export const field =
-  "h-12 w-full rounded-[var(--radius-md)] border bg-card px-4 text-base outline-none focus:ring-2 focus:ring-ring";
+  "h-12 w-full rounded-[var(--radius-md)] border border-input bg-card px-4 text-base";
 
 export interface PlantFormValues {
   name: string;
@@ -118,7 +118,7 @@ export function PlantForm({
       </div>
 
       <fieldset className="space-y-3">
-        <legend className="mb-2 font-display text-lg">How thirsty is it?</legend>
+        <legend className="mb-2 text-lg font-bold">How thirsty is it?</legend>
         <div className="grid grid-cols-2 gap-2">
           {WATERING_PRESETS.map((p) => (
             <button

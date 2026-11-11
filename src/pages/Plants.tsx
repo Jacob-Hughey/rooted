@@ -22,7 +22,7 @@ export default function Plants() {
     <>
       <PageHeader
         title="Plants"
-        subtitle={`${plants.length} in the collection`}
+        subtitle={plants.length === 1 ? "1 plant" : `${plants.length} plants`}
         action={
           <Link to="/plants/new">
             <Button size="icon" aria-label="Add plant">
@@ -39,8 +39,8 @@ export default function Plants() {
               key={r ?? "all"}
               onClick={() => setRoom(r)}
               className={cn(
-                "shrink-0 rounded-full border px-4 py-1.5 text-sm transition-colors",
-                room === r ? "border-primary bg-primary text-primary-foreground" : "bg-card",
+                "h-10 shrink-0 rounded-[var(--radius)] border px-4 transition-colors",
+                room === r ? "border-foreground bg-foreground text-background" : "border-input/50",
               )}
             >
               {r ?? "All"}
@@ -49,7 +49,7 @@ export default function Plants() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3">
         {shown.map((p) => (
           <PlantCard key={p.id} plant={p} />
         ))}

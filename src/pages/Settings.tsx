@@ -7,7 +7,7 @@ import { useHousehold, useInvite, useProfile, useUpdateProfile } from "@/data/qu
 import { currentPushState, disablePush, enablePush, type PushState } from "@/lib/push";
 import { isIOS, isStandalone } from "@/lib/pwa";
 
-const card = "rounded-[var(--radius-xl)] bg-card p-5 shadow-sm space-y-4";
+const card = "rounded-[var(--radius-lg)] bg-card p-5 space-y-4";
 
 export default function Settings() {
   const { data: profile } = useProfile();
@@ -27,7 +27,7 @@ export default function Settings() {
               type="time"
               value={profile?.reminder_time.slice(0, 5) ?? "08:30"}
               onChange={(e) => update.mutate({ reminder_time: e.target.value })}
-              className="h-11 rounded-full border bg-background px-4"
+              className="h-11 rounded-[var(--radius-md)] border border-input bg-background px-4"
             />
           </label>
           <p className="text-sm text-muted-foreground">
@@ -117,7 +117,7 @@ function InviteCard() {
           placeholder="name@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="h-11 min-w-0 flex-1 rounded-full border bg-background px-4"
+          className="h-11 min-w-0 flex-1 rounded-[var(--radius-md)] border border-input bg-background px-4"
         />
         <Button size="icon" aria-label="Send invite" disabled={invite.isPending}>
           <UserPlus />

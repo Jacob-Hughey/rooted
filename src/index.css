@@ -4,72 +4,75 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ---------------------------------------------------------------------------
-   Greenhouse palette — warm paper, forest green, sage, terracotta clay.
-   Token names follow shadcn/ui so `npx shadcn add <component>` just works.
+   Rooted palette: duck-egg ground, pothos-green ink, enamel watering-can blue
+   for anything to do with water, yellowing-leaf ochre for plants running late.
+   Token names follow shadcn/ui so `npx shadcn add <component>` still works.
    --------------------------------------------------------------------------- */
 :root {
-  --radius: 1rem;
+  --radius: 0.75rem;
 
-  --background: oklch(0.965 0.014 85);        /* warm paper  #f6f1e7 */
-  --foreground: oklch(0.27 0.03 150);         /* deep moss ink */
-  --card: oklch(0.985 0.008 85);
+  --background: #e9efec;
+  --foreground: #183b2e;
+  --card: #f5f8f6;
   --card-foreground: var(--foreground);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
 
-  --primary: oklch(0.38 0.05 155);            /* forest  #2f4a3a */
-  --primary-foreground: oklch(0.97 0.012 85);
-  --secondary: oklch(0.91 0.03 135);          /* pale sage */
-  --secondary-foreground: oklch(0.32 0.04 150);
-  --muted: oklch(0.93 0.015 85);
-  --muted-foreground: oklch(0.5 0.025 120);
-  --accent: oklch(0.88 0.05 60);              /* soft clay */
-  --accent-foreground: oklch(0.35 0.07 45);
+  --primary: #1f4a39;
+  --primary-foreground: #f5f8f6;
+  --secondary: #dce5e0;
+  --secondary-foreground: #183b2e;
+  --muted: #dfe7e3;
+  --muted-foreground: #4e6359;
+  --accent: #dce5e0;
+  --accent-foreground: #183b2e;
 
-  --water: oklch(0.62 0.08 230);              /* calm water blue for watering UI */
-  --water-foreground: oklch(0.98 0.01 230);
-  --clay: oklch(0.62 0.12 45);                /* terracotta #c4704b — overdue */
-  --clay-foreground: oklch(0.98 0.01 60);
+  --water: #2c5da8;              /* enamel watering-can blue */
+  --water-foreground: #ffffff;
+  --late: #8a5a00;               /* yellowing leaf: overdue */
+  --late-foreground: #ffffff;
+  --done: #3e6b35;               /* watered today */
 
-  --destructive: oklch(0.55 0.17 30);
-  --border: oklch(0.88 0.02 85);
-  --input: oklch(0.88 0.02 85);
-  --ring: oklch(0.55 0.06 150);
+  --destructive: #b3261e;
+  --border: #d2ddd7;
+  --input: #8a9f95;
+  --ring: #2c5da8;
 }
 
 .dark {
-  --background: oklch(0.2 0.015 150);         /* evening greenhouse */
-  --foreground: oklch(0.93 0.015 85);
-  --card: oklch(0.25 0.018 150);
+  --background: #13241d;         /* greenhouse at night */
+  --foreground: #e4ece7;
+  --card: #1b2f27;
   --card-foreground: var(--foreground);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.78 0.08 140);
-  --primary-foreground: oklch(0.22 0.03 150);
-  --secondary: oklch(0.32 0.03 150);
-  --secondary-foreground: oklch(0.9 0.02 120);
-  --muted: oklch(0.28 0.015 150);
-  --muted-foreground: oklch(0.7 0.02 120);
-  --accent: oklch(0.38 0.05 50);
-  --accent-foreground: oklch(0.92 0.03 70);
-  --water: oklch(0.7 0.08 230);
-  --water-foreground: oklch(0.2 0.02 230);
-  --clay: oklch(0.7 0.12 45);
-  --clay-foreground: oklch(0.2 0.03 45);
-  --destructive: oklch(0.65 0.17 30);
-  --border: oklch(0.34 0.02 150);
-  --input: oklch(0.34 0.02 150);
-  --ring: oklch(0.6 0.06 150);
+  --primary: #cfe3d6;
+  --primary-foreground: #13241d;
+  --secondary: #23392f;
+  --secondary-foreground: #e4ece7;
+  --muted: #1f342b;
+  --muted-foreground: #a3b8ad;
+  --accent: #23392f;
+  --accent-foreground: #e4ece7;
+  --water: #8fb3ec;
+  --water-foreground: #0f2240;
+  --late: #e0b256;
+  --late-foreground: #2a1c00;
+  --done: #9bc98e;
+  --destructive: #f2867e;
+  --border: #2c443a;
+  --input: #5d7a6c;
+  --ring: #8fb3ec;
 }
 
 @theme inline {
-  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Alegreya Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Alegreya Sans", ui-sans-serif, system-ui, sans-serif;
 
-  --radius-sm: calc(var(--radius) - 6px);
-  --radius-md: calc(var(--radius) - 3px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 6px);
+  --radius-xl: calc(var(--radius) + 4px);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -87,8 +90,9 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-water: var(--water);
   --color-water-foreground: var(--water-foreground);
-  --color-clay: var(--clay);
-  --color-clay-foreground: var(--clay-foreground);
+  --color-late: var(--late);
+  --color-late-foreground: var(--late-foreground);
+  --color-done: var(--done);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -97,19 +101,32 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   html {
+    /* Alegreya Sans runs small; 17px base reads like 16px in most faces */
+    font-size: 106.25%;
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    line-height: 1.45;
     overscroll-behavior-y: none;
   }
   h1, h2, h3 {
-    @apply font-display tracking-tight;
-    font-optical-sizing: auto;
+    @apply font-bold tracking-tight;
+    line-height: 1.1;
+  }
+  :focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 

@@ -43,7 +43,7 @@ export default function Rooms() {
                     <Link
                       key={room.id}
                       to={`/rooms/${room.id}/edit`}
-                      className="flex items-center gap-3 rounded-[var(--radius-xl)] bg-card p-4 shadow-sm transition-transform active:scale-[0.98]"
+                      className="flex items-center gap-3 rounded-[var(--radius-lg)] bg-card p-4"
                     >
                       {room.photo_path && (
                         <PlantPhoto path={room.photo_path} alt="" icon={DoorOpen} className="size-14 shrink-0 rounded-[var(--radius-md)]" />
@@ -57,7 +57,7 @@ export default function Rooms() {
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {room.light ? LIGHT_LABEL[room.light] : "Light not set"}
-                          {thirsty > 0 && <span className="text-clay"> · {thirsty} thirsty</span>}
+                          {thirsty > 0 && <span className="font-bold text-late">. {thirsty} to water today</span>}
                         </p>
                       </div>
                       <ChevronRight className="size-4 shrink-0 text-muted-foreground" />

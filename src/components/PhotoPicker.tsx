@@ -66,7 +66,7 @@ export function PhotoPicker({
         </span>
       )}
       {hasPhoto && (
-        <span className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-card/85 px-3 py-1.5 text-sm backdrop-blur">
+        <span className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-[var(--radius)] bg-card px-3 py-1.5 text-sm">
           <Camera className="size-4" /> Change photo
         </span>
       )}
