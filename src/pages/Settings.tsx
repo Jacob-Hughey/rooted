@@ -6,6 +6,8 @@ import { signOut } from "@/auth/AuthProvider";
 import { useHousehold, useInvite, useProfile, useUpdateProfile } from "@/data/queries";
 import { currentPushState, disablePush, enablePush, type PushState } from "@/lib/push";
 import { isIOS, isStandalone } from "@/lib/pwa";
+import { getTheme, setTheme, type ThemeChoice } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 
 const card = "rounded-[var(--radius-lg)] bg-card p-5 space-y-4";
 
@@ -34,6 +36,8 @@ export default function Settings() {
             One gentle nudge a day, only when something needs water. Time zone: {profile?.timezone}
           </p>
         </section>
+
+        <AppearanceCard />
 
         <InviteCard />
 
@@ -125,6 +129,42 @@ function InviteCard() {
       </form>
       {invite.isSuccess && <p className="text-sm text-primary">Invite saved. They can sign in now.</p>}
       {invite.isError && <p className="text-sm text-destructive">Couldn't save that invite.</p>}
+    </section>
+  );
+}
+
+const THEMES: { value: ThemeChoice; label: string }[] = [
+  { value: "system", label: "Match device" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+function AppearanceCard() {
+  const [choice, setChoice] = useState<ThemeChoice>(getTheme);
+
+  return (
+    <section className={card}>
+      <h2 className="text-xl" id="appearance-heading">Appearance</h2>
+      <div role="radiogroup" aria-labelledby="appearance-heading" className="grid grid-cols-3 gap-1 rounded-[var(--radius)] bg-muted p-1">
+        {THEMES.map((t) => (
+          <button
+            key={t.value}
+            role="radio"
+            aria-checked={choice === t.value}
+            onClick={() => {
+              setChoice(t.value);
+              setTheme(t.value);
+            }}
+            className={cn(
+              "h-10 rounded-[calc(var(--radius)-2px)] text-sm transition-colors",
+              choice === t.value ? "bg-card font-bold text-foreground shadow-[0_0_0_1px_var(--border)]" : "text-muted-foreground",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-sm text-muted-foreground">Saved on this device, so your phone and iPad can each have their own.</p>
     </section>
   );
 }

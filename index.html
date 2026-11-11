@@ -9,8 +9,17 @@
 
     <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <meta name="theme-color" content="#e9efec" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#13241d" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#e2ede2" />
+    <!-- Apply the saved light/dark choice before first paint (same logic as src/lib/theme.ts) -->
+    <script>
+      try {
+        var t = localStorage.getItem("rooted-theme");
+        var dark = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+        if (dark) document.documentElement.classList.add("dark");
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? "#13241d" : "#e2ede2");
+      } catch (e) {}
+    </script>
 
     <!-- iOS home-screen web app -->
     <meta name="apple-mobile-web-app-capable" content="yes" />

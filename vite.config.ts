@@ -27,8 +27,8 @@ export default defineConfig({
         scope: "/",
         display: "standalone", // required for Web Push on iOS
         orientation: "any",
-        background_color: "#e9efec",
-        theme_color: "#e9efec",
+        background_color: "#e2ede2",
+        theme_color: "#e2ede2",
         icons: [
           { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },

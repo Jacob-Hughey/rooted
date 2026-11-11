@@ -11,20 +11,21 @@
 :root {
   --radius: 0.75rem;
 
-  --background: #e9efec;
-  --foreground: #183b2e;
-  --card: #f5f8f6;
+  --background: #e2ede2;         /* sage */
+  --foreground: #183b2e;         /* pothos-green ink */
+  --heading: #1d5238;            /* leaf green for headings */
+  --card: #f3f8f2;
   --card-foreground: var(--foreground);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
 
   --primary: #1f4a39;
-  --primary-foreground: #f5f8f6;
-  --secondary: #dce5e0;
+  --primary-foreground: #f3f8f2;
+  --secondary: #d3e4d3;
   --secondary-foreground: #183b2e;
-  --muted: #dfe7e3;
-  --muted-foreground: #4e6359;
-  --accent: #dce5e0;
+  --muted: #d8e6d8;
+  --muted-foreground: #4a6152;
+  --accent: #d3e4d3;
   --accent-foreground: #183b2e;
 
   --water: #2c5da8;              /* enamel watering-can blue */
@@ -34,14 +35,15 @@
   --done: #3e6b35;               /* watered today */
 
   --destructive: #b3261e;
-  --border: #d2ddd7;
-  --input: #8a9f95;
+  --border: #c9dbca;
+  --input: #829c8a;
   --ring: #2c5da8;
 }
 
 .dark {
   --background: #13241d;         /* greenhouse at night */
   --foreground: #e4ece7;
+  --heading: #cfe6d5;
   --card: #1b2f27;
   --card-foreground: var(--foreground);
   --popover: var(--card);
@@ -76,6 +78,7 @@
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-heading: var(--heading);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -116,6 +119,7 @@
   }
   h1, h2, h3 {
     @apply font-bold tracking-tight;
+    color: var(--heading);
     line-height: 1.1;
   }
   :focus-visible {

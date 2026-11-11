@@ -103,7 +103,7 @@ export function WeekAhead({ plants, includeToday = true }: { plants: PlantWithPl
             <span className={cn("text-lg leading-tight", d.i === 0 && "font-bold")}>{format(d.date, "d")}</span>
             <Droplet
               aria-hidden="true"
-              className={cn("size-4", d.names.length ? "text-water" : "text-border")}
+              className={cn("size-4", d.names.length ? "text-water" : "text-muted-foreground")}
               fill={d.names.length ? "currentColor" : "none"}
               strokeWidth={d.names.length ? 2 : 1.5}
             />

@@ -37,6 +37,7 @@ export default function NewPlant() {
       <h1 className="text-3xl">New plant</h1>
       <PlantForm
         initial={EMPTY_PLANT}
+        isNew
         submitLabel="Add to the greenhouse"
         savingLabel="Planting…"
         onSubmit={save}
