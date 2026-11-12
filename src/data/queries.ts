@@ -25,6 +25,7 @@ function unwrap<T>({ data, error }: { data: T | null; error: unknown }): T {
 export const keys = {
   household: ["household"] as const,
   profile: ["profile"] as const,
+  people: ["people"] as const,
   plants: ["plants"] as const,
   archived: ["plants", "archived"] as const, // under "plants" so plant edits refresh it too
   plant: (id: string) => ["plants", id] as const,
@@ -52,6 +53,25 @@ export function useProfile() {
     enabled: !!session,
     queryFn: async () =>
       unwrap<Profile>(await supabase.from("profiles").select("*").eq("id", session!.user.id).single()),
+  });
+}
+
+/**
+ * First names of everyone in the household, by user id. RLS limits profiles to yourself and
+ * housemates, so this is the whole household. Used to say who did a bit of care.
+ */
+export function useHouseholdNames() {
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: keys.people,
+    enabled: !!session,
+    staleTime: 60 * 60 * 1000,
+    queryFn: async () => {
+      const rows = unwrap<Pick<Profile, "id" | "display_name">[]>(
+        await supabase.from("profiles").select("id, display_name"),
+      );
+      return new Map(rows.map((r) => [r.id, r.display_name?.trim().split(/\s+/)[0] || null]));
+    },
   });
 }
 

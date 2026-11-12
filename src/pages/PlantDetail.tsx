@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import {
   useAddPlantPhoto,
   useCareHistory,
+  useHouseholdNames,
   useDeletePhoto,
   useLogCare,
   usePlant,
@@ -35,6 +36,7 @@ import {
   useUpdateCareNote,
   useUpdatePlant,
 } from "@/data/queries";
+import { useAuth } from "@/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 import { daysUntilWater, displayName, LIGHT_PHRASE } from "@/lib/watering";
 import type { CareEvent, CareType, PlantPhotoRow, PlantWithPlace } from "@/lib/types";
@@ -149,6 +151,11 @@ export default function PlantDetail() {
   const nav = useNavigate();
   const { data: plant } = usePlant(id);
   const { data: history = [] } = useCareHistory(id);
+  const { session } = useAuth();
+  const { data: names } = useHouseholdNames();
+  /** Name of whoever logged this, only when it wasn't you, e.g. "Jacob". */
+  const doneBy = (ev: CareEvent) =>
+    ev.performed_by && ev.performed_by !== session?.user.id ? names?.get(ev.performed_by) ?? null : null;
   const log = useLogCare();
   const undo = useUndoCare();
   const update = useUpdatePlant();
@@ -434,7 +441,10 @@ export default function PlantDetail() {
                   />
                 ) : ev.type === "note" ? (
                   <div className="flex items-start justify-between gap-2">
-                    <p className="whitespace-pre-line">{ev.note}</p>
+                    <div>
+                      <p className="whitespace-pre-line">{ev.note}</p>
+                      {doneBy(ev) && <p className="text-sm text-muted-foreground">from {doneBy(ev)}</p>}
+                    </div>
                     <button
                       onClick={() => setEditingEvent(ev.id)}
                       className="-my-2 h-10 shrink-0 px-1 text-sm font-medium text-water"
@@ -445,7 +455,16 @@ export default function PlantDetail() {
                   </div>
                 ) : (
                   <div>
-                    <p>{EVENT_LABEL[ev.type]}</p>
+                    <p>
+                      {ev.type === "check_moist" && doneBy(ev) ? (
+                        <>Checked<span className="text-muted-foreground"> by {doneBy(ev)}</span>, soil still damp</>
+                      ) : (
+                        <>
+                          {EVENT_LABEL[ev.type]}
+                          {doneBy(ev) && <span className="text-muted-foreground"> by {doneBy(ev)}</span>}
+                        </>
+                      )}
+                    </p>
                     {ev.note && <p className="whitespace-pre-line text-sm text-muted-foreground">{ev.note}</p>}
                   </div>
                 )}
