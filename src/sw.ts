@@ -14,6 +14,27 @@ clientsClaim();
 // SPA: serve index.html for in-app navigations so the app opens offline from the home screen
 registerRoute(new NavigationRoute(createHandlerBoundToURL("/index.html")));
 
+// ---- Plant photos, kept for offline use --------------------------------------
+// Photos come from private storage through signed URLs whose token changes every hour, so cache
+// them by path alone. A path never changes content (new photos get new paths), so the cache
+// is always right: serve from it first, and fetch and keep anything not seen before.
+const PHOTO_CACHE = "plant-photos-v1";
+const PHOTO_PATH = "/storage/v1/object/sign/plant-photos/";
+
+registerRoute(
+  ({ url, request }) => request.destination === "image" && url.pathname.includes(PHOTO_PATH),
+  async ({ url }) => {
+    const key = url.origin + url.pathname;
+    const cache = await caches.open(PHOTO_CACHE);
+    const hit = await cache.match(key);
+    if (hit) return hit;
+    // Ask for a CORS response (Supabase allows it) so the status can be checked before keeping it.
+    const res = await fetch(url.href.replace(/#.*$/, ""), { mode: "cors", credentials: "omit" });
+    if (res.ok) await cache.put(key, res.clone());
+    return res;
+  },
+);
+
 // ---- Push notifications ---------------------------------------------------
 // Payload is sent by supabase/functions/send-watering-reminders:
 // { title, body, url?, tag?, badge_count? }

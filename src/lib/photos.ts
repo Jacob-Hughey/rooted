@@ -1,4 +1,4 @@
-import { supabase, PHOTO_BUCKET } from "./supabase";
+import { supabase, PHOTO_BUCKET, SUPABASE_URL } from "./supabase";
 
 /**
  * Shrink a camera photo before upload (iPhone photos are 3–6 MB).
@@ -41,7 +41,13 @@ export async function photoUrl(path: string): Promise<string> {
   const hit = urlCache.get(key);
   if (hit && hit.expires > Date.now()) return hit.url;
   const { data, error } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrl(path, 60 * 60);
-  if (error || !data) throw error ?? new Error("No signed URL");
+  // No connection: the service worker keeps every photo she has seen, keyed by path (see sw.ts),
+  // so a URL without the token still finds it. Marked so it's swapped for a real one when back online.
+  if (error || !data) return offlinePhotoUrl(path);
   urlCache.set(key, { url: data.signedUrl, expires: Date.now() + 55 * 60 * 1000 });
   return data.signedUrl;
 }
+
+export const OFFLINE_MARK = "#offline";
+const offlinePhotoUrl = (path: string) =>
+  `${SUPABASE_URL}/storage/v1/object/sign/${PHOTO_BUCKET}/${path.split("/").map(encodeURIComponent).join("/")}${OFFLINE_MARK}`;

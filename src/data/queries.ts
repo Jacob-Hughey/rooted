@@ -1,7 +1,20 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { PHOTO_BUCKET, supabase } from "@/lib/supabase";
 import { uploadPhoto } from "@/lib/photos";
 import { useAuth } from "@/auth/AuthProvider";
+import { displayName } from "@/lib/watering";
+import {
+  overlayHistory,
+  overlayPlant,
+  overlayPlants,
+  outboxEntries,
+  queueDelete,
+  queueLog,
+  queueNote,
+  useOutbox,
+  type Prior,
+} from "@/data/outbox";
 import type { CareEvent, CareType, Household, LightLevel, Location, Plant, PlantPhotoRow, PlantWithPlace, Profile, Room } from "@/lib/types";
 
 function unwrap<T>({ data, error }: { data: T | null; error: unknown }): T {
@@ -52,14 +65,27 @@ export function useUpdateProfile() {
   });
 }
 
+/** Hemisphere for the seasonal watering factor (only needed to preview offline waterings). */
+const hemisphereOf = (qc: QueryClient) => qc.getQueryData<Household>(keys.household)?.hemisphere ?? "north";
+
+/** Active plants, including care that's saved on this device but not synced yet. */
 export function usePlants() {
-  return useQuery({
+  const qc = useQueryClient();
+  const outbox = useOutbox();
+  const query = useQuery({
     queryKey: keys.plants,
     queryFn: async () =>
       unwrap<PlantWithPlace[]>(
         await supabase.from("plant_status").select("*").is("archived_at", null).order("next_water_at", { nullsFirst: true }),
       ),
   });
+  const data = useMemo(
+    () =>
+      query.data &&
+      overlayPlants(query.data, outbox, hemisphereOf(qc), (id) => qc.getQueryData<CareEvent[]>(keys.history(id))),
+    [query.data, outbox, qc],
+  );
+  return { ...query, data };
 }
 
 export function useArchivedPlants() {
@@ -73,14 +99,25 @@ export function useArchivedPlants() {
 }
 
 export function usePlant(id: string) {
-  return useQuery({
+  const qc = useQueryClient();
+  const outbox = useOutbox();
+  const query = useQuery({
     queryKey: keys.plant(id),
     queryFn: async () => unwrap<PlantWithPlace>(await supabase.from("plant_status").select("*").eq("id", id).single()),
+    // Show the plant from the list straight away (and offline) while its own row loads.
+    placeholderData: () => qc.getQueryData<PlantWithPlace[]>(keys.plants)?.find((p) => p.id === id),
   });
+  const data = useMemo(
+    () =>
+      query.data && overlayPlant(query.data, outbox, hemisphereOf(qc), qc.getQueryData<CareEvent[]>(keys.history(id))),
+    [query.data, outbox, qc, id],
+  );
+  return { ...query, data };
 }
 
 export function useCareHistory(plantId: string) {
-  return useQuery({
+  const outbox = useOutbox();
+  const query = useQuery({
     queryKey: keys.history(plantId),
     queryFn: async () =>
       unwrap<CareEvent[]>(
@@ -92,6 +129,8 @@ export function useCareHistory(plantId: string) {
           .limit(100),
       ),
   });
+  const data = useMemo(() => overlayHistory(query.data, outbox, plantId), [query.data, outbox, plantId]);
+  return { ...query, data };
 }
 
 export function usePlaces() {
@@ -107,56 +146,79 @@ export function usePlaces() {
   });
 }
 
-/** Log care (watering etc). The database trigger recalculates the plant's next watering, including for backdated care. */
+type PlantRef = Pick<Plant, "id" | "household_id"> & Partial<Pick<Plant, "name" | "nickname">>;
+
+/** The plant as the screens show it right now (server data + outbox), for names and offline undo. */
+function currentPlant(qc: QueryClient, id: string): PlantWithPlace | undefined {
+  return (
+    qc.getQueryData<PlantWithPlace>(keys.plant(id)) ?? qc.getQueryData<PlantWithPlace[]>(keys.plants)?.find((p) => p.id === id)
+  );
+}
+
+function nameOf(qc: QueryClient, plant: Pick<Plant, "id"> & Partial<Pick<Plant, "name" | "nickname">>) {
+  const p = plant.name ? plant : currentPlant(qc, plant.id);
+  return p?.name ? displayName(p as Pick<Plant, "name" | "nickname">) : "a plant";
+}
+
+/**
+ * Log care (watering etc). Saved on the device instantly and synced in the background (see outbox.ts),
+ * so it works with no signal. The database trigger recalculates the next watering once it arrives,
+ * including for backdated care.
+ */
 export function useLogCare() {
   const qc = useQueryClient();
+  const { session } = useAuth();
   return useMutation({
+    networkMode: "always", // never wait for a connection: the outbox handles that
     mutationFn: async (input: {
-      plant: { id: string; household_id: string };
+      plant: PlantRef;
       type: CareType;
       note?: string;
-      /** When it actually happened, for care logged after the fact. Omit for "now" (the database default). */
+      /** When it actually happened, for care logged after the fact. Omit for "now". */
       performedAt?: string;
-    }) =>
-      unwrap<CareEvent>(
-        await supabase
-          .from("care_events")
-          .insert({
-            plant_id: input.plant.id,
-            household_id: input.plant.household_id,
-            type: input.type,
-            note: input.note,
-            ...(input.performedAt && { performed_at: input.performedAt }),
-          })
-          .select()
-          .single(),
-      ),
-    onSuccess: (ev) => {
-      qc.invalidateQueries({ queryKey: keys.plants });
-      qc.invalidateQueries({ queryKey: keys.history(ev.plant_id) });
+    }): Promise<CareEvent> => {
+      const event: CareEvent = {
+        id: crypto.randomUUID(),
+        household_id: input.plant.household_id,
+        plant_id: input.plant.id,
+        type: input.type,
+        // Set on the device so care logged offline keeps the time she actually did it.
+        performed_at: input.performedAt ?? new Date().toISOString(),
+        performed_by: session?.user.id ?? null,
+        note: input.note ?? null,
+        photo_path: null,
+      };
+      const shown = currentPlant(qc, input.plant.id);
+      const before = shown && overlayPlant(shown, outboxEntries(), hemisphereOf(qc));
+      const prior: Prior | undefined = before && {
+        last_watered_at: before.last_watered_at,
+        next_water_at: before.next_water_at,
+        water_adjust: before.water_adjust,
+        last_fertilized_at: before.last_fertilized_at,
+        next_fertilize_at: before.next_fertilize_at,
+      };
+      queueLog(event, nameOf(qc, input.plant), prior);
+      return event;
     },
   });
 }
 
-/** Undo = delete the event; the trigger rolls last_watered_at back to the previous one. */
+/** Undo = delete the event; the trigger rolls last_watered_at back to the previous one. Works offline too. */
 export function useUndoCare() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (ev: CareEvent) => unwrap(await supabase.from("care_events").delete().eq("id", ev.id)),
-    onSuccess: (_d, ev) => {
-      qc.invalidateQueries({ queryKey: keys.plants });
-      qc.invalidateQueries({ queryKey: keys.history(ev.plant_id) });
-    },
+    networkMode: "always",
+    mutationFn: async (ev: CareEvent) => queueDelete(ev, nameOf(qc, { id: ev.plant_id })),
   });
 }
 
-/** Change the text of a history entry (used for daily notes). */
+/** Change the text of a history entry (used for daily notes). Works offline too. */
 export function useUpdateCareNote() {
   const qc = useQueryClient();
   return useMutation({
+    networkMode: "always",
     mutationFn: async ({ ev, note }: { ev: CareEvent; note: string }) =>
-      unwrap(await supabase.from("care_events").update({ note }).eq("id", ev.id)),
-    onSuccess: (_d, { ev }) => qc.invalidateQueries({ queryKey: keys.history(ev.plant_id) }),
+      queueNote(ev, note, nameOf(qc, { id: ev.plant_id })),
   });
 }
 

@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Leaf, type LucideIcon } from "lucide-react";
-import { photoUrl } from "@/lib/photos";
+import { OFFLINE_MARK, photoUrl } from "@/lib/photos";
 import { cn } from "@/lib/utils";
 
 /** Signed URL for a stored photo, cached across the app. */
@@ -8,7 +9,8 @@ export function usePhotoUrl(path: string | null | undefined) {
   return useQuery({
     queryKey: ["photo", path],
     enabled: !!path,
-    staleTime: 50 * 60 * 1000,
+    // An offline stand-in URL is replaced as soon as there's a connection again.
+    staleTime: (q) => (q.state.data?.endsWith(OFFLINE_MARK) ? 0 : 50 * 60 * 1000),
     queryFn: () => photoUrl(path!),
   }).data;
 }
@@ -29,15 +31,18 @@ export function PlantPhoto({
   fit?: "cover" | "contain";
 }) {
   const url = usePhotoUrl(path);
+  // A photo that isn't saved on the device can't load offline: show the placeholder instead of a broken image.
+  const [failed, setFailed] = useState<string | null>(null);
 
   return (
     <div className={cn("relative overflow-hidden", fit === "cover" && "bg-secondary", className)}>
-      {url ? (
+      {url && failed !== url ? (
         <img
           src={url}
           alt={alt}
           loading="lazy"
           draggable={false}
+          onError={() => setFailed(url)}
           className={cn("absolute inset-0 size-full", fit === "cover" ? "object-cover" : "object-contain")}
         />
       ) : (

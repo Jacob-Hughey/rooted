@@ -72,3 +72,22 @@ export function lightWaterHint(light: LightLevel | null): string | null {
       return null;
   }
 }
+
+// Jan..Dec, same numbers as public.seasonal_factor (northern hemisphere).
+const SEASON = [1.4, 1.3, 1.1, 1.0, 0.9, 0.85, 0.85, 0.9, 1.0, 1.1, 1.25, 1.4];
+
+/**
+ * The next watering after `lastWatered`, mirroring public.compute_next_water in the database.
+ * Used to show a watering logged offline right away; the server's value replaces it once it syncs.
+ */
+export function computeNextWater(
+  lastWatered: string,
+  intervalDays: number,
+  adjust: number,
+  hemisphere: "north" | "south" = "north",
+): string {
+  const at = new Date(lastWatered);
+  const month = (at.getUTCMonth() + (hemisphere === "south" ? 6 : 0)) % 12;
+  const days = Math.max(1, Math.round(intervalDays * adjust * SEASON[month]));
+  return new Date(at.getTime() + days * 86_400_000).toISOString();
+}

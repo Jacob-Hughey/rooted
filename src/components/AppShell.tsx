@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { NavLink, Outlet } from "react-router";
 import { Droplet, House, Leaf, SlidersHorizontal } from "lucide-react";
+import { SyncStatus } from "@/components/SyncStatus";
 import { ToastProvider } from "@/components/Toast";
+import { useLiveSync } from "@/data/live";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -15,6 +17,7 @@ const tabs = [
  * Phone: bottom tab bar (thumb reach).  iPad / wide screens: side rail.
  */
 export function AppShell() {
+  useLiveSync();
   return (
     <ToastProvider>
       <div className="min-h-dvh md:grid md:grid-cols-[96px_1fr]">
@@ -25,6 +28,7 @@ export function AppShell() {
             "md:sticky md:top-0 md:h-dvh md:border-r md:border-t-0 md:pt-safe",
           )}
         >
+          <SyncStatus />
           <ul className="mx-auto grid max-w-md grid-cols-4 md:flex md:flex-col md:items-center md:gap-3 md:pt-8">
             {tabs.map(({ to, label, icon: Icon, end }) => (
               <li key={to}>
