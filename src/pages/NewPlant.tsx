@@ -23,6 +23,7 @@ export default function NewPlant() {
       notes: v.notes || undefined,
       room_id: v.roomId || null,
       water_interval_days: v.waterDays,
+      fertilize_interval_days: v.fertilizeDays,
       cover_photo_path: cover,
       last_watered_at: wateredToday ? new Date().toISOString() : null,
     });

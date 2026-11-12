@@ -3,8 +3,8 @@ import { Link } from "react-router";
 import { addDays, differenceInCalendarDays, format, formatDistanceStrict, startOfDay } from "date-fns";
 import { Droplet } from "lucide-react";
 import { PlantPhoto } from "@/components/PlantPhoto";
-import { useLatestPhotoDates, usePlantPhotos } from "@/data/queries";
-import { daysUntilWater, displayName } from "@/lib/watering";
+import { useHousehold, useLatestPhotoDates, usePlantPhotos } from "@/data/queries";
+import { daysUntilWater, displayName, isFeedingRest } from "@/lib/watering";
 import type { PlantWithPlace } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -126,10 +126,12 @@ const PHOTO_STALE_DAYS = 90;
 
 export function Nudges({ plants }: { plants: PlantWithPlace[] }) {
   const { data: latestPhoto } = useLatestPhotoDates();
+  const { data: household } = useHousehold();
   const now = new Date();
   const items: { key: string; to: string; text: string }[] = [];
 
-  for (const p of plants) {
+  // Fertilizer nudges sleep through winter; anything that came due then shows up once in spring.
+  for (const p of isFeedingRest(now, household?.hemisphere) ? [] : plants) {
     const n = displayName(p);
     if (p.next_fertilize_at && differenceInCalendarDays(new Date(p.next_fertilize_at), now) <= 0)
       items.push({ key: `fert-${p.id}`, to: `/plants/${p.id}`, text: `${n} is due for fertilizer` });

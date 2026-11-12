@@ -233,6 +233,7 @@ export function useCreatePlant() {
       light?: LightLevel | null;
       room_id?: string | null;
       water_interval_days: number;
+      fertilize_interval_days?: number | null;
       notes?: string;
       cover_photo_path?: string | null;
       last_watered_at?: string | null;
@@ -246,10 +247,10 @@ export function useCreatePlant() {
 }
 
 export type PlantPatch = Partial<
-  Pick<Plant, "name" | "nickname" | "species" | "light" | "notes" | "room_id" | "water_interval_days" | "cover_photo_path" | "archived_at">
+  Pick<Plant, "name" | "nickname" | "species" | "light" | "notes" | "room_id" | "water_interval_days" | "fertilize_interval_days" | "cover_photo_path" | "archived_at">
 >;
 
-/** Edit a plant. Changing water_interval_days makes the database trigger recalculate next_water_at. */
+/** Edit a plant. Changing water_interval_days or fertilize_interval_days makes the database trigger recalculate the due dates. */
 export function useUpdatePlant() {
   const qc = useQueryClient();
   return useMutation({

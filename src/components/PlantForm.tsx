@@ -1,11 +1,20 @@
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Minus, Plus } from "lucide-react";
+import { ChevronDown, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PhotoPicker } from "@/components/PhotoPicker";
 import { SpeciesInput } from "@/components/SpeciesInput";
-import { usePlaces } from "@/data/queries";
+import { useHousehold, usePlaces } from "@/data/queries";
 import { findSpecies } from "@/lib/species";
-import { LIGHT_LABEL, lightWaterHint, WATERING_PRESETS } from "@/lib/watering";
+import {
+  FERTILIZE_MAX_DAYS,
+  FERTILIZE_MIN_DAYS,
+  FERTILIZE_PRESETS,
+  feedingResumes,
+  isFeedingRest,
+  LIGHT_LABEL,
+  lightWaterHint,
+  WATERING_PRESETS,
+} from "@/lib/watering";
 import type { LightLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -20,10 +29,12 @@ export interface PlantFormValues {
   /** null = same as the room */
   light: LightLevel | null;
   waterDays: number;
+  /** null = no fertilizer reminder (the default) */
+  fertilizeDays: number | null;
   notes: string;
 }
 
-export const EMPTY_PLANT: PlantFormValues = { name: "", nickname: "", species: "", roomId: "", light: null, waterDays: 7, notes: "" };
+export const EMPTY_PLANT: PlantFormValues = { name: "", nickname: "", species: "", roomId: "", light: null, waterDays: 7, fertilizeDays: null, notes: "" };
 
 const MIN_DAYS = 1;
 const MAX_DAYS = 120; // matches the check constraint on plants.water_interval_days
@@ -201,6 +212,8 @@ export function PlantForm({
         {extra}
       </fieldset>
 
+      <FertilizerReminder days={v.fertilizeDays} onChange={(d) => set("fertilizeDays", d)} />
+
       <textarea
         placeholder="About this plant (optional): where it came from, quirks, what it likes"
         value={v.notes}
@@ -214,5 +227,93 @@ export function PlantForm({
         {saving ? savingLabel : submitLabel}
       </Button>
     </form>
+  );
+}
+
+const dayWord = (d: number) => (d === 1 ? "day" : "days");
+const fertLabel = (d: number) => FERTILIZE_PRESETS.find((p) => p.days === d)?.label ?? `Every ${d} ${dayWord(d)}`;
+
+/**
+ * Opt-in fertilizer reminder, folded into one quiet row so it stays out of the way.
+ * When it's due, Today shows a small nudge (never a notification), and nudges rest over winter.
+ */
+function FertilizerReminder({ days, onChange }: { days: number | null; onChange: (d: number | null) => void }) {
+  const { data: household } = useHousehold();
+  const [open, setOpen] = useState(false);
+  const hemisphere = household?.hemisphere ?? "north";
+  const resting = isFeedingRest(new Date(), hemisphere);
+  const resumes = feedingResumes(hemisphere);
+  const clamp = (d: number) => Math.min(FERTILIZE_MAX_DAYS, Math.max(FERTILIZE_MIN_DAYS, Math.round(d) || FERTILIZE_MIN_DAYS));
+
+  const summary = days === null ? "Off" : resting ? `${fertLabel(days)} · resting until ${resumes}` : fertLabel(days);
+
+  return (
+    <div className="rounded-[var(--radius-md)] border bg-card">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span className="font-medium">Fertilizer reminder</span>
+        <span className="flex items-center gap-1 text-sm text-muted-foreground">
+          {summary}
+          <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
+        </span>
+      </button>
+
+      {open && (
+        <div className="space-y-3 border-t px-4 pt-3 pb-4">
+          <div className="grid grid-cols-3 gap-2">
+            {FERTILIZE_PRESETS.map((p) => (
+              <button
+                type="button"
+                key={p.days}
+                onClick={() => onChange(p.days)}
+                className={cn(
+                  "rounded-[var(--radius-md)] border p-2 text-sm transition-colors",
+                  days === p.days ? "border-primary bg-secondary font-medium" : "bg-card",
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {days !== null && (
+            <div className="flex items-center justify-between rounded-[var(--radius-md)] border p-2 pl-4">
+              <span className="text-sm">
+                Every <strong className="font-medium">{days}</strong> {dayWord(days)}
+              </span>
+              <div className="flex gap-1">
+                <Button type="button" variant="ghost" size="icon" aria-label="One day less" onClick={() => onChange(clamp(days - 1))} disabled={days <= FERTILIZE_MIN_DAYS}>
+                  <Minus />
+                </Button>
+                <Button type="button" variant="ghost" size="icon" aria-label="One day more" onClick={() => onChange(clamp(days + 1))} disabled={days >= FERTILIZE_MAX_DAYS}>
+                  <Plus />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <p className="text-sm text-muted-foreground">
+            {days === null
+              ? "Off unless you want it. When it's on, Today shows a small nudge when a feeding is due. No notifications."
+              : "Counts from the last time you tap Fertilized, or from today if you haven't yet. It shows up as a small nudge on Today, never a notification."}
+          </p>
+          <p className="rounded-[var(--radius-md)] bg-secondary px-3 py-2 text-sm">
+            {resting
+              ? `Houseplants rest over winter, so there won't be any fertilizer nudges until ${resumes}. Anything due before then shows up once spring arrives.`
+              : `Nudges pause each winter while houseplants rest, and pick back up in ${resumes}.`}
+          </p>
+
+          {days !== null && (
+            <Button type="button" variant="ghost" size="sm" className="px-0 text-muted-foreground" onClick={() => onChange(null)}>
+              Turn off
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

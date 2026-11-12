@@ -32,6 +32,7 @@ export default function EditPlant() {
         notes: v.notes || null,
         room_id: v.roomId || null,
         water_interval_days: v.waterDays,
+        fertilize_interval_days: v.fertilizeDays,
         cover_photo_path: cover,
       },
     });
@@ -68,6 +69,7 @@ export default function EditPlant() {
           roomId: plant.room_id ?? "",
           light: plant.light,
           waterDays: plant.water_interval_days,
+          fertilizeDays: plant.fertilize_interval_days,
           notes: plant.notes ?? "",
         }}
         photoPath={plant.cover_photo_path}

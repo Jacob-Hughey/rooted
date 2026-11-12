@@ -91,3 +91,24 @@ export function computeNextWater(
   const days = Math.max(1, Math.round(intervalDays * adjust * SEASON[month]));
   return new Date(at.getTime() + days * 86_400_000).toISOString();
 }
+
+/* ------------------------------------------------------------------ */
+/* Fertilizer: opt-in, and quiet over winter                           */
+/* ------------------------------------------------------------------ */
+
+export const FERTILIZE_PRESETS = [
+  { days: 14, label: "Every 2 weeks" },
+  { days: 30, label: "Monthly" },
+  { days: 60, label: "Every 2 months" },
+];
+export const FERTILIZE_MIN_DAYS = 1;
+export const FERTILIZE_MAX_DAYS = 365; // matches the check constraint on plants.fertilize_interval_days
+
+/** Houseplants rest from November to February (May to August down south): no fertilizer nudges then. */
+export function isFeedingRest(at: Date = new Date(), hemisphere: "north" | "south" = "north"): boolean {
+  const month = (at.getMonth() + (hemisphere === "south" ? 6 : 0)) % 12;
+  return month >= 10 || month <= 1;
+}
+
+/** The month fertilizer nudges come back: "March" up north, "September" down south. */
+export const feedingResumes = (hemisphere: "north" | "south" = "north") => (hemisphere === "south" ? "September" : "March");
