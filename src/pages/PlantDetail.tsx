@@ -1,7 +1,20 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { format } from "date-fns";
-import { ArchiveRestore, Camera, ChevronLeft, Droplet, NotebookPen, Plus } from "lucide-react";
+import {
+  ArchiveRestore,
+  Camera,
+  ChevronDown,
+  ChevronLeft,
+  Droplet,
+  NotebookPen,
+  Plus,
+  RotateCw,
+  Scissors,
+  Shovel,
+  SprayCan,
+  type LucideIcon,
+} from "lucide-react";
 import { AddPhotoButton } from "@/components/AddPhotoButton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { dayPhrase, DayPicker, dayToTimestamp, type CareDay } from "@/components/DayPicker";
@@ -22,6 +35,7 @@ import {
   useUpdateCareNote,
   useUpdatePlant,
 } from "@/data/queries";
+import { cn } from "@/lib/utils";
 import { daysUntilWater, displayName, LIGHT_PHRASE } from "@/lib/watering";
 import type { CareEvent, CareType, PlantPhotoRow, PlantWithPlace } from "@/lib/types";
 
@@ -48,10 +62,18 @@ function loggedToast(name: string, type: CareType, day: CareDay) {
   const when = dayPhrase(day) === "today" ? "" : ` ${dayPhrase(day)}`;
   if (type === "note") return `Note added${when && ` for ${dayPhrase(day).replace(/^on /, "")}`}`;
   if (type === "water") return `${name} watered${when}`;
-  if (type === "fertilize") return `${name} fertilized${when}`;
   if (type === "check_moist") return `${name} checked${when}, still damp`;
-  return `${name} updated`;
+  if (type === "photo") return `${name} updated`;
+  return `${name} ${EVENT_LABEL[type].toLowerCase()}${when}`; // "Monstera repotted yesterday"
 }
+
+/** The "More" buttons, most frequent first. */
+const MORE_CARE: { type: CareType; label: string; Icon: LucideIcon }[] = [
+  { type: "mist", label: "Misted", Icon: SprayCan },
+  { type: "rotate", label: "Rotated", Icon: RotateCw },
+  { type: "prune", label: "Pruned", Icon: Scissors },
+  { type: "repot", label: "Repotted", Icon: Shovel },
+];
 
 /** "Wants water every 7 days. Last watered November 2, so it's 2 days late." */
 function Rhythm({ plant }: { plant: PlantWithPlace }) {
@@ -133,6 +155,7 @@ export default function PlantDetail() {
   const updateNote = useUpdateCareNote();
   const toast = useToast();
   const [writingNote, setWritingNote] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   // Day the next logged care happened; null = today. Resets after each log so a later tap isn't backdated by accident.
   const [careDay, setCareDay] = useState<CareDay>(null);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
@@ -262,9 +285,27 @@ export default function PlantDetail() {
           Fertilized
         </Button>
         {!writingNote && (
-          <Button variant="outline" className="col-span-2" onClick={() => setWritingNote(true)}>
+          <Button variant="outline" onClick={() => setWritingNote(true)}>
             <NotebookPen /> Note for {noteDay}
           </Button>
+        )}
+        <Button
+          variant="outline"
+          className={cn(writingNote && "col-span-2")}
+          aria-expanded={showMore}
+          aria-controls="more-care"
+          onClick={() => setShowMore((o) => !o)}
+        >
+          More <ChevronDown className={cn("transition-transform", showMore && "rotate-180")} />
+        </Button>
+        {showMore && (
+          <div id="more-care" role="group" aria-label="More care" className="col-span-2 grid grid-cols-2 gap-2.5">
+            {MORE_CARE.map(({ type, label, Icon }) => (
+              <Button key={type} variant="outline" disabled={log.isPending} onClick={() => logCare(type)}>
+                <Icon /> {label}
+              </Button>
+            ))}
+          </div>
         )}
       </div>
 
