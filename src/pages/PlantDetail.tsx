@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { ArchiveRestore, Camera, ChevronLeft, Droplet, NotebookPen, Plus } from "lucide-react";
 import { AddPhotoButton } from "@/components/AddPhotoButton";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { dayPhrase, DayPicker, dayToTimestamp, type CareDay } from "@/components/DayPicker";
 import { NoteEditor } from "@/components/NoteEditor";
 import { SwipeRow } from "@/components/SwipeRow";
 import { PlantPhoto } from "@/components/PlantPhoto";
@@ -42,12 +43,15 @@ function entryName(ev: CareEvent) {
   return EVENT_LABEL[ev.type];
 }
 
-/** Toast wording per action, matching the button that was tapped. */
-const LOGGED: Partial<Record<CareType, string>> = {
-  water: "watered",
-  check_moist: "checked, still damp",
-  fertilize: "fertilized",
-};
+/** Toast wording per action, matching the button that was tapped. "{name} watered yesterday" */
+function loggedToast(name: string, type: CareType, day: CareDay) {
+  const when = dayPhrase(day) === "today" ? "" : ` ${dayPhrase(day)}`;
+  if (type === "note") return `Note added${when && ` for ${dayPhrase(day).replace(/^on /, "")}`}`;
+  if (type === "water") return `${name} watered${when}`;
+  if (type === "fertilize") return `${name} fertilized${when}`;
+  if (type === "check_moist") return `${name} checked${when}, still damp`;
+  return `${name} updated`;
+}
 
 /** "Wants water every 7 days. Last watered November 2, so it's 2 days late." */
 function Rhythm({ plant }: { plant: PlantWithPlace }) {
@@ -129,6 +133,8 @@ export default function PlantDetail() {
   const updateNote = useUpdateCareNote();
   const toast = useToast();
   const [writingNote, setWritingNote] = useState(false);
+  // Day the next logged care happened; null = today. Resets after each log so a later tap isn't backdated by accident.
+  const [careDay, setCareDay] = useState<CareDay>(null);
   const [editingEvent, setEditingEvent] = useState<string | null>(null);
   const [swipedEvent, setSwipedEvent] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<CareEvent | null>(null);
@@ -141,6 +147,8 @@ export default function PlantDetail() {
   if (!plant) return <div className="-mx-5 aspect-[4/5] max-h-[45dvh] animate-pulse bg-muted md:mx-0 md:rounded-[var(--radius-xl)]" />;
 
   const name = displayName(plant);
+  const pastDay = dayPhrase(careDay) !== "today";
+  const noteDay = dayPhrase(careDay).replace(/^on /, "");
   const place = [plant.room_name, plant.effective_light && LIGHT_PHRASE[plant.effective_light]].filter(Boolean).join(", ");
 
   function onPickPhoto(file: File) {
@@ -161,12 +169,14 @@ export default function PlantDetail() {
   ].sort((a, b) => b.at.localeCompare(a.at));
 
   function logCare(type: CareType, note?: string) {
+    const day = careDay;
     log.mutate(
-      { plant: plant!, type, note },
+      { plant: plant!, type, note, performedAt: dayToTimestamp(day) },
       {
         onSuccess: (ev: CareEvent) => {
           if (type === "note") setWritingNote(false);
-          toast(type === "note" ? "Note added" : `${name} ${LOGGED[type] ?? "updated"}`, {
+          setCareDay(null);
+          toast(loggedToast(name, type, day), {
             label: "Undo",
             onClick: () => undo.mutate(ev),
           });
@@ -237,9 +247,13 @@ export default function PlantDetail() {
         <Rhythm plant={plant} />
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-2.5">
+      <div className="mt-5">
+        <DayPicker value={careDay} onChange={setCareDay} disabled={log.isPending} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2.5">
         <Button variant="water" size="lg" className="col-span-2" disabled={log.isPending} onClick={() => logCare("water")}>
-          <Droplet /> Mark as watered
+          <Droplet /> {pastDay ? `Watered ${dayPhrase(careDay)}` : "Mark as watered"}
         </Button>
         <Button variant="outline" disabled={log.isPending} onClick={() => logCare("check_moist")}>
           Soil still damp
@@ -249,7 +263,7 @@ export default function PlantDetail() {
         </Button>
         {!writingNote && (
           <Button variant="outline" className="col-span-2" onClick={() => setWritingNote(true)}>
-            <NotebookPen /> Note for today
+            <NotebookPen /> Note for {noteDay}
           </Button>
         )}
       </div>
@@ -257,7 +271,7 @@ export default function PlantDetail() {
       {writingNote && (
         <div className="mt-3">
           <NoteEditor
-            label={`Note for today about ${name}`}
+            label={`Note for ${noteDay} about ${name}`}
             placeholder="New leaf, a pest spotted, moved it to the window…"
             saveLabel="Add note"
             saving={log.isPending}

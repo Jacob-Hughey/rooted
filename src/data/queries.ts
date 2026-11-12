@@ -107,15 +107,27 @@ export function usePlaces() {
   });
 }
 
-/** Log care (watering etc). The database trigger recalculates the plant's next watering. */
+/** Log care (watering etc). The database trigger recalculates the plant's next watering, including for backdated care. */
 export function useLogCare() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { plant: { id: string; household_id: string }; type: CareType; note?: string }) =>
+    mutationFn: async (input: {
+      plant: { id: string; household_id: string };
+      type: CareType;
+      note?: string;
+      /** When it actually happened, for care logged after the fact. Omit for "now" (the database default). */
+      performedAt?: string;
+    }) =>
       unwrap<CareEvent>(
         await supabase
           .from("care_events")
-          .insert({ plant_id: input.plant.id, household_id: input.plant.household_id, type: input.type, note: input.note })
+          .insert({
+            plant_id: input.plant.id,
+            household_id: input.plant.household_id,
+            type: input.type,
+            note: input.note,
+            ...(input.performedAt && { performed_at: input.performedAt }),
+          })
           .select()
           .single(),
       ),
